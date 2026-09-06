@@ -87,6 +87,7 @@ enum BuiltInGames {
             GameTemplate(name: "Jokeren", mono: "JO", mode: .roundsCumulative,
                          roundCount: jokerenRounds.count, winsByLowest: true,
                          roundLabels: jokerenRounds,
+                         supportsJokers: true,
                          isBuiltIn: true, sortIndex: next()),
 
             GameTemplate(name: "Keer op Keer", mono: "KK", mode: .scorecard,

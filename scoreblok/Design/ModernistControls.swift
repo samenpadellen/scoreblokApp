@@ -68,33 +68,6 @@ struct HeavyRule: View {
 
 // MARK: - Speler
 
-/// Vierkant monogram met de initiaal. Kleur is nooit het enige signaal.
-struct Monogram: View {
-    let initial: String
-    let background: Color
-    let foreground: Color
-    var size: CGFloat = 34
-    var fontSize: CGFloat?
-
-    var body: some View {
-        Text(initial)
-            .font(M.font(fontSize ?? size * 0.38, .extraBold))
-            .foregroundStyle(foreground)
-            .frame(width: size, height: size)
-            .background(background)
-    }
-}
-
-extension Monogram {
-    init(player: Player, size: CGFloat = 34, fontSize: CGFloat? = nil) {
-        self.init(initial: player.initial,
-                  background: player.color,
-                  foreground: player.inkColor,
-                  size: size,
-                  fontSize: fontSize)
-    }
-}
-
 /// Monogram van een spel — twee letters op inkt of rood.
 struct GameMark: View {
     let mono: String

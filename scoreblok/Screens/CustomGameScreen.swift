@@ -17,6 +17,7 @@ struct CustomGameScreen: View {
     @State private var minPlayers = 2
     @State private var maxPlayers = 8
     @State private var eliminationLimit = 10
+    @State private var supportsJokers = false
     @State private var borrowedCard: String = "Keer op Keer"
     @State private var saved = false
 
@@ -187,6 +188,7 @@ struct CustomGameScreen: View {
             case .roundsCumulative:
                 fieldRow(roundsField, winnerField)
                 fieldRow(negativeField, playersField)
+                fieldRow(jokerField, EmptyView())
             case .winnerOnly:
                 fieldRow(recordField, playersField)
             case .scorecard:
@@ -258,6 +260,19 @@ struct CustomGameScreen: View {
             HStack(spacing: 14) {
                 HardToggle(isOn: $allowNegative)
                 Text(allowNegative ? "de ±-toets staat aan" : "zet de ±-toets uit")
+                    .font(M.font(12, .regular))
+                    .foregroundStyle(M.inkAlpha(0.55))
+            }
+        }
+    }
+
+    private var jokerField: some View {
+        field("Jokerteller") {
+            HStack(spacing: 14) {
+                HardToggle(isOn: $supportsJokers)
+                Text(supportsJokers
+                     ? "je kunt hem per potje aan- of uitzetten"
+                     : "niet aangeboden bij het opzetten")
                     .font(M.font(12, .regular))
                     .foregroundStyle(M.inkAlpha(0.55))
             }
@@ -402,6 +417,7 @@ struct CustomGameScreen: View {
         minPlayers = existing.minPlayers
         maxPlayers = existing.maxPlayers
         eliminationLimit = existing.eliminationLimit
+        supportsJokers = existing.supportsJokers
     }
 
     private func save() {
@@ -423,6 +439,7 @@ struct CustomGameScreen: View {
         target.minPlayers = minPlayers
         target.maxPlayers = maxPlayers
         target.eliminationLimit = eliminationLimit
+        target.supportsJokers = mode == .roundsCumulative && supportsJokers
         target.subtitleNote = ""
         target.scorecardData = mode == .scorecard ? borrowedSpec?.encoded() : nil
 

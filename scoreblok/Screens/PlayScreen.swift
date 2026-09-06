@@ -8,8 +8,10 @@ struct PlayScreen: View {
     @Query private var players: [Player]
 
     private var activePlayers: [Player] { players.filter { !$0.isArchived } }
-    private var openMatch: Match? {
-        matches.first { !$0.isFinished && !$0.isAbandoned }
+    /// Alle potjes die nog lopen, laatst gespeeld bovenaan. Ze blijven staan
+    /// tot je ze afrondt, ook als dat dagen later is.
+    private var openMatches: [Match] {
+        matches.filter(\.isOpen).sorted { $0.lastPlayedAt > $1.lastPlayedAt }
     }
 
     /// De vier sjablonen die het laatst gespeeld zijn; aangevuld uit de lijst.
@@ -36,8 +38,12 @@ struct PlayScreen: View {
                 header
                 HeavyRule()
 
-                if let openMatch {
-                    resumeCard(openMatch)
+                if let first = openMatches.first {
+                    resumeCard(first)
+                    ForEach(openMatches.dropFirst()) { match in
+                        Hairline()
+                        openRow(match)
+                    }
                     HeavyRule()
                 }
 
@@ -138,15 +144,63 @@ struct PlayScreen: View {
     }
 
     private func resumeSubtitle(_ match: Match) -> String {
-        let started = match.startedAt.formatted(.dateTime.hour().minute())
+        "\(position(match)) · laatst gespeeld \(match.lastPlayedText)"
+    }
+
+    /// Waar het potje staat: bij spellen met opdrachten die opdracht, anders
+    /// het rondenummer.
+    private func position(_ match: Match) -> String {
         switch match.mode {
-        case .scorecard:
-            return "Scorekaart · begonnen \(started)"
-        case .winnerOnly:
-            return "Eindvolgorde vastleggen · begonnen \(started)"
+        case .scorecard: "Scorekaart"
+        case .winnerOnly: "Eindvolgorde vastleggen"
+        case .finalScore: "Eindscore invullen"
         default:
-            let total = match.roundCount > 0 ? " van \(match.roundCount)" : ""
-            return "Ronde \(match.currentRoundIndex + 1)\(total) · begonnen \(started)"
+            if let label = match.roundLabel(at: match.currentRoundIndex) {
+                "Ronde \(match.currentRoundIndex + 1) · \(label.lowercased())"
+            } else if match.roundCount > 0 {
+                "Ronde \(match.currentRoundIndex + 1) van \(match.roundCount)"
+            } else {
+                "Ronde \(match.currentRoundIndex + 1)"
+            }
+        }
+    }
+
+    /// Compacte rij voor de overige open potjes.
+    private func openRow(_ match: Match) -> some View {
+        RowButton(minHeight: 62) {
+            router.screen = match.mode == .scorecard ? .card(match) : .board(match)
+        } content: {
+            HStack(spacing: 14) {
+                GameMark(mono: match.mono, size: 30)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(match.gameName)
+                        .font(M.font(14.5, .extraBold))
+                        .foregroundStyle(M.ink)
+                        .lineLimit(1)
+                    Text(resumeSubtitle(match))
+                        .font(M.font(11.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 12)
+                HStack(spacing: 8) {
+                    ForEach(match.standings.prefix(5)) { standing in
+                        HStack(spacing: 7) {
+                            PlayerMark(player: standing.player, size: 16)
+                            Text("\(standing.total)")
+                                .font(M.font(11.5, .semiBold))
+                                .foregroundStyle(M.ink)
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .overlay(Rectangle().stroke(M.hairline, lineWidth: 1))
+                    }
+                }
+                Text("→")
+                    .font(M.font(15, .regular))
+                    .foregroundStyle(M.inkAlpha(0.35))
+            }
+            .padding(.horizontal, 28)
         }
     }
 

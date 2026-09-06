@@ -92,6 +92,15 @@ struct MixLine: Identifiable {
     var id: String { gameName }
 }
 
+struct JokerLine: Identifiable {
+    let player: Player
+    let total: Int
+    let matches: Int
+    var id: UUID { player.id }
+
+    var perMatch: Double { matches == 0 ? 0 : Double(total) / Double(matches) }
+}
+
 struct FormLine: Identifiable {
     let player: Player
     /// Voortschrijdend winstpercentage, oud → nieuw, als 0…1.
@@ -246,6 +255,21 @@ enum StatsEngine {
             }
         }
         return counts.values.max { $0.1 < $1.1 }?.0
+    }
+
+    /// Jokers over meerdere potjes. Telt alleen potjes waar de jokerteller
+    /// aanstond, zodat een potje zonder teller het gemiddelde niet verwatert.
+    static func jokers(for players: [Player], in matches: [Match]) -> [JokerLine] {
+        let counted = matches.filter(\.tracksJokers)
+        guard !counted.isEmpty else { return [] }
+
+        return players.compactMap { player in
+            let played = counted.filter { match in match.players.contains { $0.id == player.id } }
+            guard !played.isEmpty else { return nil }
+            let total = played.reduce(0) { $0 + $1.totalJokers(for: player) }
+            return JokerLine(player: player, total: total, matches: played.count)
+        }
+        .sorted { $0.total > $1.total }
     }
 
     static func records(in matches: [Match]) -> [RecordLine] {

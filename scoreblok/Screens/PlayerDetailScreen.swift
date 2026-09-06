@@ -12,6 +12,10 @@ struct PlayerDetailScreen: View {
     private var results: [MatchResult] { StatsEngine.results(for: player, in: counted) }
     private var me: Player? { players.first(where: \.isMe) }
 
+    @State private var editingLook = false
+    @State private var draftAvatar = 0
+    @State private var draftRamp = 0
+
     /// Tegen wie de balans loopt: normaal tegen jou, en als dit jouw eigen
     /// profiel is tegen je vaakste medespeler.
     private var counterpart: Player? {
@@ -31,12 +35,38 @@ struct PlayerDetailScreen: View {
                 lower
             }
         }
+        .overlay { if editingLook { lookPanel } }
+    }
+
+    private var lookPanel: some View {
+        ModalPanel(title: "Uiterlijk van \(player.name)",
+                   width: 480,
+                   onClose: { editingLook = false }) {
+            VStack(alignment: .leading, spacing: 18) {
+                AvatarPicker(avatarIndex: $draftAvatar, rampIndex: $draftRamp)
+                HStack(spacing: 10) {
+                    Spacer()
+                    OutlineButton(title: "Annuleer") { editingLook = false }
+                    SolidButton(title: "Bewaar") {
+                        player.avatarIndex = draftAvatar
+                        player.rampIndex = draftRamp
+                        editingLook = false
+                    }
+                }
+            }
+            .padding(20)
+        }
     }
 
     private var bar: some View {
         HStack(spacing: 16) {
             BackLink(title: "Spelers") { router.screen = .players }
             Spacer()
+            OutlineButton(title: "Uiterlijk") {
+                draftAvatar = player.avatarIndex
+                draftRamp = player.rampIndex
+                editingLook = true
+            }
             OutlineButton(title: player.isArchived ? "Terughalen" : "Archiveren") {
                 player.isArchived.toggle()
             }
@@ -47,7 +77,7 @@ struct PlayerDetailScreen: View {
 
     private var header: some View {
         HStack(spacing: 18) {
-            Monogram(player: player, size: 64)
+            PlayerMark(player: player, size: 64)
             VStack(alignment: .leading, spacing: 8) {
                 Text(player.name)
                     .font(M.font(34, .extraBold))
@@ -81,13 +111,17 @@ struct PlayerDetailScreen: View {
         let longest = StatsEngine.longestWinStreak(for: player, in: counted)
         let streak = StatsEngine.streak(for: player, in: counted)
 
-        let items: [(String, String, String)] = [
+        var items: [(String, String, String)] = [
             ("Potjes", "\(results.count)", results.isEmpty ? "nog niets gespeeld"
                 : "sinds \(player.createdAt.formatted(.dateTime.month(.abbreviated).year()))"),
             ("Winstpercentage", results.isEmpty ? "—" : rate.percentText, "\(wins) gewonnen"),
             ("Gem. eindpositie", results.isEmpty ? "—" : averageRank.dutch(1), "over alle spellen"),
             ("Langste winreeks", "\(longest)", "nu: \(streak.long)")
         ]
+        if let jokers = StatsEngine.jokers(for: [player], in: counted).first {
+            items.append(("Jokers", "\(jokers.total)",
+                          "\(jokers.perMatch.dutch(1)) per potje"))
+        }
 
         return HStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in

@@ -56,6 +56,7 @@ struct BoardScreen: View {
             OutlineButton(title: "↺ Undo",
                           tint: undoStack.isEmpty ? M.inkAlpha(0.35) : M.red) { undo() }
                 .disabled(undoStack.isEmpty)
+            OutlineButton(title: "Bewaar en stop") { pause() }
             SolidButton(title: "Potje afronden", fill: M.ink, fontSize: 12.5) {
                 confirmFinish = true
             }
@@ -91,6 +92,7 @@ struct BoardScreen: View {
             }
             averagesRow
             Hairline()
+            jokersRow
         }
     }
 
@@ -111,7 +113,7 @@ struct BoardScreen: View {
                 let standing = standings.first { $0.player.id == player.id }
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 10) {
-                        Monogram(player: player, size: 30)
+                        PlayerMark(player: player, size: 30)
                         Text(player.name)
                             .font(M.font(14, .semiBold))
                             .foregroundStyle(M.ink)
@@ -198,6 +200,18 @@ struct BoardScreen: View {
                 .foregroundStyle(value == nil && !isSelected ? M.inkAlpha(0.28) : M.ink)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 46)
+                .overlay(alignment: .topTrailing) {
+                    let jokers = match.jokers(round: index, player: player)
+                    if match.tracksJokers, jokers > 0 {
+                        Text("J\(jokers)")
+                            .font(M.font(9, .extraBold))
+                            .foregroundStyle(M.paper)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(M.red)
+                            .padding(4)
+                    }
+                }
                 .background(isSelected ? M.redWash : (isLeaderColumn ? M.inkAlpha(0.05) : .clear))
                 .overlay {
                     if isSelected { Rectangle().stroke(M.red, lineWidth: 2) }
@@ -242,6 +256,35 @@ struct BoardScreen: View {
         .background(M.paperDeep)
     }
 
+    @ViewBuilder
+    private var jokersRow: some View {
+        if match.tracksJokers {
+            HStack(spacing: 0) {
+                Text("JOKERS")
+                    .font(M.font(9.5, .semiBold))
+                    .tracking(em: 0.1, size: 9.5)
+                    .foregroundStyle(M.inkAlpha(0.45))
+                    .padding(.horizontal, match.hasRoundLabels ? 14 : 0)
+                    .frame(width: roundColumnWidth,
+                           alignment: match.hasRoundLabels ? .leading : .center)
+                    .frame(minHeight: 44)
+                    .overlay(alignment: .trailing) { columnRule }
+
+                ForEach(seats) { player in
+                    let total = match.totalJokers(for: player)
+                    Text("\(total)")
+                        .font(M.font(13, .extraBold))
+                        .foregroundStyle(total > 0 ? M.red : M.inkAlpha(0.35))
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 44)
+                        .overlay(alignment: .trailing) { columnRule }
+                }
+            }
+            .background(M.paperDeep)
+            Hairline()
+        }
+    }
+
     private var columnRule: some View {
         Rectangle().fill(M.hairline).frame(width: 1)
     }
@@ -266,6 +309,7 @@ struct BoardScreen: View {
                         .lineSpacing(5)
                         .frame(maxWidth: 300, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
+                    if match.tracksJokers { jokerStepper.padding(.top, 14) }
                     Spacer(minLength: 12)
                     nextRoundButton
                 }
@@ -296,6 +340,31 @@ struct BoardScreen: View {
         return match.allowNegative
             ? "Tik het aantal punten. ± maakt de invoer negatief. Bevestigen gaat naar de volgende speler."
             : "Tik het aantal punten. Bevestigen gaat naar de volgende speler in deze ronde."
+    }
+
+    /// De twist: naast de punten telt hoeveel jokers deze speler deze ronde had.
+    private var jokerStepper: some View {
+        let player = seats.indices.contains(selectedSeat) ? seats[selectedSeat] : nil
+        let count = player.map { match.jokers(round: selectedRound, player: $0) } ?? 0
+
+        return HStack(spacing: 12) {
+            SectionLabel("Jokers")
+            Text("\(count)")
+                .font(M.font(20, .extraBold))
+                .foregroundStyle(count > 0 ? M.red : M.ink)
+                .frame(minWidth: 22, alignment: .leading)
+            StepperPair(canDecrement: count > 0, canIncrement: count < 8) {
+                setJokers(count - 1)
+            } onIncrement: {
+                setJokers(count + 1)
+            }
+        }
+    }
+
+    private func setJokers(_ count: Int) {
+        guard seats.indices.contains(selectedSeat) else { return }
+        round(at: selectedRound).setJokers(count, for: seats[selectedSeat].id, in: context)
+        save()
     }
 
     private var nextRoundButton: some View {
@@ -420,6 +489,7 @@ struct BoardScreen: View {
         var value = Int(entry) ?? 0
         if negative && match.allowNegative { value = -value }
         round(at: selectedRound).setValue(value, for: player.id, in: context)
+        save()
         entry = ""
         negative = false
         advanceSeat()
@@ -462,6 +532,20 @@ struct BoardScreen: View {
         negative = false
     }
 
+    /// Tussentijds bewaren. SwiftData schrijft zelf al weg, maar bij het
+    /// weglopen van een potje willen we het zeker weten.
+    private func save() {
+        match.touch()
+        try? context.save()
+    }
+
+    /// Stoppen zonder af te ronden: het potje blijft open en staat bovenaan
+    /// op Spelen tot je het oppakt.
+    private func pause() {
+        save()
+        router.screen = .play
+    }
+
     private func finish() {
         match.endedAt = .now
         confirmFinish = false
@@ -498,6 +582,7 @@ struct BoardScreen: View {
                 round.setValue(values[player.id], for: player.id, in: context)
             }
         }
+        save()
         entry = ""
         negative = false
     }
@@ -539,7 +624,7 @@ private struct FinishOrderBoard: View {
                             .font(M.font(15, .extraBold))
                             .foregroundStyle(place(of: player) == nil ? M.inkAlpha(0.3) : M.ink)
                             .frame(width: 22, alignment: .center)
-                        Monogram(player: player)
+                        PlayerMark(player: player)
                         Text(player.name)
                             .font(M.font(15, .semiBold))
                             .foregroundStyle(M.ink)
@@ -567,6 +652,7 @@ private struct FinishOrderBoard: View {
     }
 
     private func assign(_ player: Player) {
+        match.touch()
         let round = existingRound()
         if place(of: player) != nil {
             round.setValue(nil, for: player.id, in: context)

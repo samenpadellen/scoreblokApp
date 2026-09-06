@@ -44,6 +44,7 @@ struct StatsScreen: View {
                     HeavyRule()
                     headToHeadAndRecords
                     HeavyRule()
+                    jokerBlock
                     calendarAndMix
                 }
             }
@@ -240,7 +241,7 @@ struct StatsScreen: View {
 
                 Button { router.screen = .detail(row.player) } label: {
                     HStack(spacing: 12) {
-                        Monogram(player: row.player, size: 26)
+                        PlayerMark(player: row.player, size: 26)
                         Text(row.player.name)
                             .font(M.font(14, .semiBold))
                             .foregroundStyle(M.ink)
@@ -378,6 +379,55 @@ struct StatsScreen: View {
             }
         }
         .padding(EdgeInsets(top: 18, leading: 24, bottom: 20, trailing: 24))
+    }
+
+    // MARK: - Jokerteller
+
+    /// Alleen zichtbaar als er potjes met de jokerteller gespeeld zijn.
+    @ViewBuilder
+    private var jokerBlock: some View {
+        let lines = StatsEngine.jokers(for: players, in: scoped)
+        if !lines.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Jokerteller")
+                        .font(M.font(18, .extraBold))
+                        .foregroundStyle(M.ink)
+                    Spacer()
+                    Text("jokers over alle potjes met de teller aan")
+                        .font(M.font(11.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                }
+                .padding(.bottom, 14)
+
+                let most = max(lines.map(\.total).max() ?? 1, 1)
+                ForEach(lines) { line in
+                    HStack(spacing: 12) {
+                        PlayerMark(player: line.player, size: 26)
+                        Text(line.player.name)
+                            .font(M.font(14, .semiBold))
+                            .foregroundStyle(M.ink)
+                            .frame(width: 120, alignment: .leading)
+                            .lineLimit(1)
+                        BarMeter(fraction: Double(line.total) / Double(most),
+                                 height: 10, fill: M.red, track: M.paperDeep)
+                        Text("\(line.total)")
+                            .font(M.font(15, .extraBold))
+                            .foregroundStyle(M.ink)
+                            .frame(width: 40, alignment: .trailing)
+                        Text("\(line.perMatch.dutch(1)) p/potje")
+                            .font(M.font(11.5, .regular))
+                            .foregroundStyle(M.inkAlpha(0.5))
+                            .frame(width: 96, alignment: .trailing)
+                    }
+                    .frame(minHeight: 46)
+                    Hairline()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(EdgeInsets(top: 18, leading: 24, bottom: 20, trailing: 24))
+            HeavyRule()
+        }
     }
 
     // MARK: - Kalender en spelmix

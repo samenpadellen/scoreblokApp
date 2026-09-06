@@ -10,6 +10,9 @@ final class Player {
     var name: String = ""
     /// Index in de neutrale ramp. Kleur is nooit het enige signaal.
     var rampIndex: Int = 0
+    /// De meetkundige vorm van de speler; wordt willekeurig gekozen en is het
+    /// tweede signaal naast de kleur.
+    var avatarIndex: Int = 0
     /// De eigenaar van dit blok — "dat ben jij" in de spelerslijst.
     var isMe: Bool = false
     /// Verwijderen bestaat niet; archiveren wel.
@@ -18,10 +21,11 @@ final class Player {
 
     var matches: [Match] = []
 
-    init(name: String, rampIndex: Int, isMe: Bool = false) {
+    init(name: String, rampIndex: Int, avatarIndex: Int? = nil, isMe: Bool = false) {
         self.id = UUID()
         self.name = name
         self.rampIndex = rampIndex
+        self.avatarIndex = avatarIndex ?? Int.random(in: 0..<AvatarShape.count)
         self.isMe = isMe
         self.createdAt = .now
     }
@@ -54,6 +58,8 @@ final class GameTemplate {
     /// Opdracht per ronde, bijvoorbeeld "Drie op een rij". Leeg laat de app
     /// gewoon rondenummers tonen.
     var roundLabels: [String] = []
+    /// Of dit spel de jokerteller kan aanbieden bij het opzetten.
+    var supportsJokers: Bool = false
     var isBuiltIn: Bool = false
     /// Letterlijke ondertitel uit het sjabloon; leeg laat de app hem afleiden.
     var subtitleNote: String = ""
@@ -71,6 +77,7 @@ final class GameTemplate {
          eliminationLimit: Int = 10,
          scorecard: ScorecardSpec? = nil,
          roundLabels: [String] = [],
+         supportsJokers: Bool = false,
          isBuiltIn: Bool = false,
          subtitleNote: String = "",
          sortIndex: Int = 0) {
@@ -86,6 +93,7 @@ final class GameTemplate {
         self.eliminationLimit = eliminationLimit
         self.scorecardData = scorecard?.encoded()
         self.roundLabels = roundLabels
+        self.supportsJokers = supportsJokers
         self.isBuiltIn = isBuiltIn
         self.subtitleNote = subtitleNote
         self.sortIndex = sortIndex
@@ -136,8 +144,14 @@ final class Match {
     var eliminationLimit: Int = 10
     var scorecardData: Data?
     var roundLabels: [String] = []
+    /// Aangezet bij het opzetten: naast de punten houd je per ronde bij
+    /// hoeveel jokers iemand had.
+    var tracksJokers: Bool = false
 
     var startedAt: Date = Date.now
+    /// Wanneer er voor het laatst iets is ingevuld. Bepaalt de volgorde van
+    /// open potjes en de tekst "waar je gebleven was".
+    var lastPlayedAt: Date = Date.now
     var endedAt: Date?
     /// Afgebroken potjes tellen nergens mee.
     var abandonedAt: Date?
@@ -164,6 +178,7 @@ final class Match {
         self.scorecardData = template.scorecardData
         self.roundLabels = template.roundLabels
         self.startedAt = .now
+        self.lastPlayedAt = .now
     }
 
     /// Koppelt de deelnemers en legt de zitvolgorde vast. Roep dit pas aan
@@ -177,6 +192,27 @@ final class Match {
     var scorecard: ScorecardSpec? { ScorecardSpec.decode(scorecardData) }
 
     var isFinished: Bool { endedAt != nil }
+    /// Een potje dat nog loopt: je kunt er dagen later mee verder.
+    var isOpen: Bool { endedAt == nil && abandonedAt == nil }
+
+    /// Stempelt het potje zodra er iets verandert.
+    func touch() { lastPlayedAt = .now }
+
+    /// "vandaag 19:12", "gisteren", "3 dagen geleden".
+    var lastPlayedText: String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(lastPlayedAt) {
+            return "vandaag \(lastPlayedAt.formatted(.dateTime.hour().minute()))"
+        }
+        if calendar.isDateInYesterday(lastPlayedAt) {
+            return "gisteren \(lastPlayedAt.formatted(.dateTime.hour().minute()))"
+        }
+        let days = calendar.dateComponents([.day],
+                                           from: calendar.startOfDay(for: lastPlayedAt),
+                                           to: calendar.startOfDay(for: .now)).day ?? 0
+        if days < 7 { return "\(days) dagen geleden" }
+        return lastPlayedAt.formatted(.dateTime.day().month(.abbreviated))
+    }
     var isAbandoned: Bool { abandonedAt != nil }
     /// Alleen afgeronde, niet-afgebroken potjes tellen mee in de statistieken.
     var counts: Bool { isFinished && !isAbandoned }
@@ -215,6 +251,15 @@ final class Match {
 
     func value(round index: Int, player: Player) -> Int? {
         round(at: index)?.value(for: player.id)
+    }
+
+    func jokers(round index: Int, player: Player) -> Int {
+        round(at: index)?.jokers(for: player.id) ?? 0
+    }
+
+    /// Alle jokers van deze speler in dit potje.
+    func totalJokers(for player: Player) -> Int {
+        rounds.reduce(0) { $0 + $1.jokers(for: player.id) }
     }
 
     func card(for player: Player) -> ScoreCard? {
@@ -337,13 +382,23 @@ final class MatchRound {
     }
 
     func setValue(_ value: Int?, for playerID: UUID, in context: ModelContext) {
-        if let existing = entries.first(where: { $0.playerID == playerID }) {
-            existing.value = value
-        } else {
-            let entry = ScoreEntry(playerID: playerID, value: value)
-            context.insert(entry)
-            entries.append(entry)
-        }
+        entry(for: playerID, in: context).value = value
+    }
+
+    func jokers(for playerID: UUID) -> Int {
+        entries.first { $0.playerID == playerID }?.jokers ?? 0
+    }
+
+    func setJokers(_ count: Int, for playerID: UUID, in context: ModelContext) {
+        entry(for: playerID, in: context).jokers = max(0, count)
+    }
+
+    private func entry(for playerID: UUID, in context: ModelContext) -> ScoreEntry {
+        if let existing = entries.first(where: { $0.playerID == playerID }) { return existing }
+        let created = ScoreEntry(playerID: playerID, value: nil)
+        context.insert(created)
+        entries.append(created)
+        return created
     }
 }
 
@@ -352,6 +407,8 @@ final class ScoreEntry {
     var playerID: UUID = UUID()
     /// Leeg blijft leeg: een niet-ingevulde cel is niet hetzelfde als nul.
     var value: Int?
+    /// Aantal jokers dat deze speler in deze ronde had.
+    var jokers: Int = 0
     var round: MatchRound?
 
     init(playerID: UUID, value: Int?) {

@@ -9,6 +9,8 @@ struct PlayersScreen: View {
 
     @State private var addingPlayer = false
     @State private var newName = ""
+    @State private var newAvatar = 0
+    @State private var newRamp = 0
 
     private var counted: [Match] { matches.filter(\.counts) }
     private var visible: [Player] { players.filter { !$0.isArchived } }
@@ -39,7 +41,7 @@ struct PlayersScreen: View {
                             router.screen = .detail(player)
                         } content: {
                             HStack(spacing: 13) {
-                                Monogram(player: player, size: 28)
+                                PlayerMark(player: player, size: 28)
                                 Text(player.name)
                                     .font(M.font(14.5, .semiBold))
                                     .foregroundStyle(M.inkAlpha(0.6))
@@ -70,10 +72,7 @@ struct PlayersScreen: View {
         HStack(alignment: .bottom) {
             ScreenTitle("Spelers")
             Spacer()
-            SolidButton(title: "Nieuw profiel") {
-                newName = ""
-                addingPlayer = true
-            }
+            SolidButton(title: "Nieuw profiel") { beginNewPlayer() }
         }
         .padding(EdgeInsets(top: 24, leading: 28, bottom: 18, trailing: 28))
     }
@@ -84,10 +83,7 @@ struct PlayersScreen: View {
                 .font(M.font(13, .regular))
                 .foregroundStyle(M.inkAlpha(0.6))
                 .frame(maxWidth: 560, alignment: .leading)
-            SolidButton(title: "Nieuw profiel") {
-                newName = ""
-                addingPlayer = true
-            }
+            SolidButton(title: "Nieuw profiel") { beginNewPlayer() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(28)
@@ -103,7 +99,7 @@ struct PlayersScreen: View {
         } content: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
-                    Monogram(player: player, size: 44)
+                    PlayerMark(player: player, size: 44)
                     VStack(alignment: .leading, spacing: 5) {
                         Text(player.name)
                             .font(M.font(18, .extraBold))
@@ -143,9 +139,17 @@ struct PlayersScreen: View {
         }
     }
 
+    private func beginNewPlayer() {
+        newName = ""
+        newAvatar = Int.random(in: 0..<AvatarShape.count)
+        newRamp = players.count % M.playerRamp.count
+        addingPlayer = true
+    }
+
     private var newPlayerPanel: some View {
         ModalPanel(title: "Nieuw profiel", onClose: { addingPlayer = false }) {
             VStack(alignment: .leading, spacing: 16) {
+                AvatarPicker(avatarIndex: $newAvatar, rampIndex: $newRamp)
                 HardTextField(placeholder: "Naam", text: $newName)
                 HStack(spacing: 10) {
                     Spacer()
@@ -155,7 +159,8 @@ struct PlayersScreen: View {
                         let name = newName.trimmingCharacters(in: .whitespaces)
                         guard !name.isEmpty else { return }
                         context.insert(Player(name: name,
-                                              rampIndex: players.count % M.playerRamp.count,
+                                              rampIndex: newRamp,
+                                              avatarIndex: newAvatar,
                                               isMe: players.isEmpty))
                         addingPlayer = false
                     }

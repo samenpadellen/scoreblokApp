@@ -14,8 +14,11 @@ struct SetupScreen: View {
     @State private var winsByLowest = true
     @State private var allowNegative = false
     @State private var eliminationLimit = 10
+    @State private var tracksJokers = false
     @State private var addingPlayer = false
     @State private var newName = ""
+    @State private var newAvatar = 0
+    @State private var newRamp = 0
 
     private var roster: [Player] { allPlayers.filter { !$0.isArchived } }
     private var seated: [Player] { chosen.compactMap { id in roster.first { $0.id == id } } }
@@ -107,7 +110,7 @@ struct SetupScreen: View {
         } content: {
             HStack(spacing: 13) {
                 HardCheckbox(isOn: isOn)
-                Monogram(player: player)
+                PlayerMark(player: player)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(player.name)
                         .font(M.font(15, .semiBold))
@@ -133,6 +136,8 @@ struct SetupScreen: View {
     private var addPlayerRow: some View {
         RowButton(minHeight: 64) {
             newName = ""
+            newAvatar = Int.random(in: 0..<AvatarShape.count)
+            newRamp = allPlayers.count % M.playerRamp.count
             addingPlayer = true
         } content: {
             HStack(spacing: 13) {
@@ -157,7 +162,7 @@ struct SetupScreen: View {
                 .font(M.font(13, .extraBold))
                 .foregroundStyle(M.inkAlpha(0.4))
                 .frame(width: 16, alignment: .leading)
-            Monogram(player: player, size: 30)
+            PlayerMark(player: player, size: 30)
             Text(player.name)
                 .font(M.font(15, .semiBold))
                 .foregroundStyle(M.ink)
@@ -199,6 +204,10 @@ struct SetupScreen: View {
                 Hairline()
                 negativeRow
                 Hairline()
+                if template.supportsJokers {
+                    jokerRow
+                    Hairline()
+                }
             case .finalScore:
                 winnerRow
                 Hairline()
@@ -251,6 +260,15 @@ struct SetupScreen: View {
         .padding(.vertical, 14)
     }
 
+    /// De twist: naast de punten tel je de jokers, ook over meerdere potjes.
+    private var jokerRow: some View {
+        RuleRow(title: "Jokerteller",
+                hint: "Houd per ronde bij hoeveel jokers iemand had. Telt door in de statistieken.",
+                minHeight: 76) {
+            HardToggle(isOn: $tracksJokers)
+        }
+    }
+
     private var negativeRow: some View {
         RuleRow(title: "Negatieve punten",
                 hint: "Zet de ±-toets aan op het bord") {
@@ -295,6 +313,7 @@ struct SetupScreen: View {
     private var newPlayerPanel: some View {
         ModalPanel(title: "Nieuwe speler", onClose: { addingPlayer = false }) {
             VStack(alignment: .leading, spacing: 16) {
+                AvatarPicker(avatarIndex: $newAvatar, rampIndex: $newRamp)
                 HardTextField(placeholder: "Naam", text: $newName)
                 HStack(spacing: 10) {
                     Spacer()
@@ -316,6 +335,7 @@ struct SetupScreen: View {
         winsByLowest = template.winsByLowest
         allowNegative = template.allowNegative
         eliminationLimit = template.eliminationLimit
+        tracksJokers = template.supportsJokers
         if chosen.isEmpty { repeatLastTeam() }
     }
 
@@ -341,7 +361,8 @@ struct SetupScreen: View {
         let name = newName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
         let player = Player(name: name,
-                            rampIndex: allPlayers.count % M.playerRamp.count,
+                            rampIndex: newRamp,
+                            avatarIndex: newAvatar,
                             isMe: allPlayers.isEmpty)
         context.insert(player)
         chosen.append(player.id)
@@ -357,6 +378,7 @@ struct SetupScreen: View {
         match.winsByLowest = winsByLowest
         match.allowNegative = allowNegative
         match.eliminationLimit = eliminationLimit
+        match.tracksJokers = template.supportsJokers && tracksJokers
 
         if match.mode == .scorecard {
             for player in seated {

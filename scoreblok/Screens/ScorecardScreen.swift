@@ -74,6 +74,11 @@ struct ScorecardScreen: View {
             }
             .overlay(Rectangle().stroke(M.ruleHeavy, lineWidth: 1))
 
+            OutlineButton(title: "Bewaar en stop") {
+                match.touch()
+                try? context.save()
+                router.screen = .play
+            }
             SolidButton(title: "Potje afronden", fill: M.ink, fontSize: 12.5) {
                 confirmFinish = true
             }
@@ -318,6 +323,7 @@ struct ScorecardScreen: View {
 
     private func tap(_ column: ScoreColumn) {
         guard let card else { return }
+        match.touch()
         switch column.kind {
         case .toggle:
             if card.columnKeys.contains(column.key) {

@@ -57,13 +57,40 @@ struct RootView: View {
     @Query private var matches: [Match]
     @State private var router = Router()
 
+    /// Het lopende potje, als er een is.
+    private var openMatch: Match? {
+        matches
+            .filter { !$0.isFinished && !$0.isAbandoned }
+            .max { $0.startedAt < $1.startedAt }
+    }
+
+    /// Op Spelen staat de grote kaart al, en op de schermen van het potje zelf
+    /// is de balk overbodig.
+    private var showsNowPlaying: Bool {
+        switch router.screen {
+        case .play, .setup, .board, .card, .finish: false
+        default: true
+        }
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             sidebar
             Rectangle().fill(M.ruleHeavy).frame(width: 2)
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(M.paper)
+            VStack(spacing: 0) {
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if showsNowPlaying, let openMatch {
+                    NowPlayingBar(match: openMatch) {
+                        router.screen = openMatch.mode == .scorecard
+                            ? .card(openMatch) : .board(openMatch)
+                    }
+                    .transition(.move(edge: .bottom))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(M.paper)
+            .animation(.snappy(duration: 0.22), value: showsNowPlaying)
         }
         .background(M.paper)
         .environment(router)
@@ -85,14 +112,9 @@ struct RootView: View {
 
     private var sidebar: some View {
         VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Scoreblok")
-                    .font(M.font(22, .extraBold))
-                    .tracking(em: -0.02, size: 22)
-                    .foregroundStyle(M.ink)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(EdgeInsets(top: 20, leading: 20, bottom: 16, trailing: 20))
+            Wordmark(size: 22, markSize: 34)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(EdgeInsets(top: 20, leading: 20, bottom: 16, trailing: 20))
             Hairline()
 
             ForEach(NavSection.allCases) { section in
@@ -104,10 +126,11 @@ struct RootView: View {
 
             Rectangle().fill(M.ruleHeavy).frame(height: 2)
             VStack(alignment: .leading, spacing: 6) {
-                SectionLabel("Opslag")
-                Text("Lokaal op deze iPad")
+                SectionLabel(Storage.mode.title)
+                Text(Storage.mode.detail)
                     .font(M.font(12.5, .regular))
                     .foregroundStyle(M.inkAlpha(0.7))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)

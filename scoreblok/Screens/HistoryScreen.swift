@@ -149,7 +149,7 @@ struct HistoryScreen: View {
                         HStack(spacing: 8) {
                             ForEach(match.standings.prefix(5)) { standing in
                                 HStack(spacing: 7) {
-                                    Monogram(player: standing.player, size: 16, fontSize: 9)
+                                    PlayerMark(player: standing.player, size: 16)
                                     Text("\(standing.total)")
                                         .font(M.font(11.5, .semiBold))
                                         .foregroundStyle(M.ink)
@@ -287,7 +287,7 @@ struct HistoryScreen: View {
                     let isWinner = match.standings.first?.player.id == player.id
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 10) {
-                            Monogram(player: player, size: 28, fontSize: 12)
+                            PlayerMark(player: player, size: 28)
                             Text(player.name)
                                 .font(M.font(13.5, .semiBold))
                                 .foregroundStyle(M.ink)
@@ -354,7 +354,7 @@ struct HistoryScreen: View {
                         .font(M.font(13, .extraBold))
                         .foregroundStyle(M.inkAlpha(0.4))
                         .frame(width: 18)
-                    Monogram(player: standing.player, size: 28, fontSize: 12)
+                    PlayerMark(player: standing.player, size: 28)
                     Text(standing.player.name)
                         .font(M.font(15, .semiBold))
                         .foregroundStyle(M.ink)

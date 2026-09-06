@@ -74,7 +74,7 @@ struct FinishScreen: View {
             ForEach(Array(standings.prefix(3).enumerated()), id: \.element.id) { index, standing in
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 11) {
-                        Monogram(player: standing.player)
+                        PlayerMark(player: standing.player)
                         Text(standing.player.name)
                             .font(M.font(16, .extraBold))
                             .foregroundStyle(M.ink)
