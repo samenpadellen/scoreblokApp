@@ -210,14 +210,22 @@ struct SettingsPanel: View {
     private var creditsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel("Credits")
-            Text("Ontwikkeld door Softwarestudio Wave2Lead")
-                .font(M.font(13, .semiBold))
-                .foregroundStyle(M.ink)
+            Text("Ontwikkeld door")
+                .font(M.font(12.5, .regular))
+                .foregroundStyle(M.inkAlpha(0.55))
             Link(destination: URL(string: "https://www.wave2lead.com")!) {
-                Text("wave2lead.com")
-                    .font(M.font(12.5, .semiBold))
-                    .foregroundStyle(M.red)
+                VStack(alignment: .leading, spacing: 6) {
+                    Image("Wave2Lead")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 26)
+                        .accessibilityLabel("Softwarestudio Wave2Lead")
+                    Text("wave2lead.com")
+                        .font(M.font(11.5, .semiBold))
+                        .foregroundStyle(M.red)
+                }
             }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: 18, leading: 20, bottom: 20, trailing: 20))

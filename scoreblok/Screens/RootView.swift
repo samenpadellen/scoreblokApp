@@ -135,9 +135,10 @@ struct RootView: View {
             Group {
                 if stacked {
                     VStack(spacing: 0) {
-                        topBar
+                        compactHeader
                         Rectangle().fill(M.ruleHeavy).frame(height: 2)
                         workspace
+                        tabBar
                     }
                 } else {
                     HStack(spacing: 0) {
@@ -171,46 +172,68 @@ struct RootView: View {
 
     // MARK: - Strook bovenin, bij een smal venster
 
-    /// Dezelfde vorm als de periodefilters op het statistiekenscherm: één rij
-    /// segmenten met haarlijnen ertussen en het actieve vak in inkt.
-    private var topBar: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Wordmark(size: 18, markSize: 26)
-                Spacer()
-                Button {
-                    showingSettings = true
-                } label: {
-                    Text("INSTELLINGEN")
-                        .font(M.font(10, .semiBold))
-                        .tracking(em: 0.12, size: 10)
-                        .foregroundStyle(Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
-                        .frame(minHeight: M.tap)
-                }
-                .buttonStyle(.plain)
+    /// Kop op een telefoon: alleen het woordmerk en de ingang naar de
+    /// instellingen. De navigatie zit onderin, in duimbereik.
+    private var compactHeader: some View {
+        HStack {
+            Wordmark(size: 18, markSize: 26)
+            Spacer()
+            Button {
+                showingSettings = true
+            } label: {
+                Text("INSTELLINGEN")
+                    .font(M.font(10, .semiBold))
+                    .tracking(em: 0.12, size: 10)
+                    .foregroundStyle(Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
+                    .frame(minHeight: M.tap)
             }
-            .padding(.horizontal, 16)
-            Hairline()
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .background(M.paperDeep)
+    }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(NavSection.allCases) { section in
-                        let isActive = router.screen.section == section
-                        Button {
-                            router.go(section)
-                        } label: {
+    /// De zijbalk wordt een tabbalk met dezelfde bestemmingen. Eigen spel
+    /// staat op de telefoon onderin Spelen en heeft hier geen eigen tab.
+    private var tabBar: some View {
+        let tabs: [NavSection] = [.play, .players, .stats, .history]
+
+        return VStack(spacing: 0) {
+            Rectangle().fill(M.ruleHeavy).frame(height: 2)
+            HStack(spacing: 0) {
+                ForEach(Array(tabs.enumerated()), id: \.element) { index, section in
+                    let isActive = router.screen.section == section
+                    Button {
+                        router.go(section)
+                    } label: {
+                        VStack(spacing: 6) {
+                            Rectangle()
+                                .fill(isActive ? M.red : Color.clear)
+                                .frame(width: 16, height: 3)
                             Text(section.rawValue)
-                                .font(M.font(12.5, .extraBold))
+                                .font(M.font(11.5, isActive ? .extraBold : .semiBold))
+                                .tracking(em: 0.04, size: 11.5)
                                 .foregroundStyle(isActive ? M.paper : M.ink)
-                                .padding(.horizontal, 16)
-                                .frame(minHeight: 46)
-                                .background(isActive ? M.ink : .clear)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                         }
-                        .buttonStyle(.plain)
-                        Rectangle().fill(M.hairline).frame(width: 1, height: 46)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 56)
+                        .background(isActive ? M.ink : Color.clear)
+                        .overlay(alignment: .trailing) {
+                            if index < tabs.count - 1 {
+                                Rectangle().fill(M.hairline).frame(width: 1)
+                            }
+                        }
+                        .contentShape(.rect)
                     }
+                    .buttonStyle(.plain)
                 }
             }
+            // Het systeem trekt de achtergrond van het onderste vlak door tot
+            // onder de home-indicator. Deze strook zorgt dat dat papier is en
+            // niet de inkt van het actieve tabblad.
+            Rectangle().fill(M.paperDeep).frame(height: 1)
         }
         .background(M.paperDeep)
     }

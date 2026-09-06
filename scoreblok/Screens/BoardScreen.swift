@@ -58,11 +58,30 @@ struct BoardScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            toolbar
-            HeavyRule()
+            if !isCompact {
+                toolbar
+                HeavyRule()
+            }
 
             if match.mode == .winnerOnly {
                 FinishOrderBoard(match: match)
+            } else if isCompact {
+                // Op een telefoon draait het bord een kwartslag: elke speler
+                // een rij, één ronde tegelijk.
+                CompactBoardScreen(
+                    match: match,
+                    selectedRound: $selectedRound,
+                    selectedSeat: $selectedSeat,
+                    entry: $entry,
+                    negative: $negative,
+                    canUndo: !undoStack.isEmpty,
+                    onUndo: undo,
+                    onFinish: { confirmFinish = true },
+                    onBack: { router.screen = .play },
+                    onKey: press,
+                    onSelect: { round, seat in select(round: round, seat: seat) },
+                    onNextRound: advanceRound
+                )
             } else {
                 // Een tweeassige ScrollView centreert inhoud die kleiner is dan
                 // het venster; dit houdt de tabel linksboven verankerd.
