@@ -89,10 +89,8 @@ enum BuiltInGames {
                          roundCount: jokerenRounds.count, winsByLowest: true,
                          roundLabels: jokerenRounds,
                          supportsJokers: true,
-                         // Je telt de kaarten die je overhoudt; alleen het
-                         // totaal telt, een gemiddelde zegt hier niets.
+                         // Je telt de kaarten die je overhoudt, niet punten.
                          unitLabel: "kaarten",
-                         showsAverages: false,
                          isBuiltIn: true, sortIndex: next()),
 
             GameTemplate(name: "Keer op Keer", mono: "KK", mode: .scorecard,

@@ -18,8 +18,12 @@ struct CustomGameScreen: View {
     @State private var maxPlayers = 8
     @State private var eliminationLimit = 10
     @State private var supportsJokers = false
+    @State private var unitLabel = "punten"
+    @State private var roundLabels: [String] = []
     @State private var borrowedCard: String = "Keer op Keer"
     @State private var saved = false
+    @State private var describing = ""
+    @State private var assistant = GameAssistant()
 
     private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
     private var canSave: Bool { !trimmedName.isEmpty && !mono.isEmpty }
@@ -31,6 +35,7 @@ struct CustomGameScreen: View {
                 Hairline()
                 header
                 HeavyRule()
+                assistantBlock
                 identity
                 Hairline()
                 modeBlock
@@ -68,6 +73,80 @@ struct CustomGameScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: 24, leading: 28, bottom: 18, trailing: 28))
+    }
+
+    // MARK: - Beschrijven in gewone taal
+
+    /// Het model draait op het apparaat zelf; zonder Apple Intelligence blijft
+    /// de editor gewoon met de hand te bedienen.
+    private var assistantBlock: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                SectionLabel("Beschrijf het spel")
+                Spacer()
+                if let explanation = assistant.readiness.explanation {
+                    Text(explanation)
+                        .font(M.font(11.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.45))
+                }
+            }
+
+            HStack(spacing: 10) {
+                HardTextField(placeholder: "Boerenbridge, 16 rondes, je voorspelt je slagen, hoogste totaal wint",
+                              text: $describing, fontSize: 14)
+                    .disabled(!assistant.isReady)
+                    .opacity(assistant.isReady ? 1 : 0.5)
+                    .onSubmit { runAssistant() }
+
+                SolidButton(title: assistant.state == .thinking ? "Bezig…" : "Vul in",
+                            minHeight: 48,
+                            enabled: assistant.isReady && assistant.state != .thinking
+                                     && !describing.trimmingCharacters(in: .whitespaces).isEmpty) {
+                    runAssistant()
+                }
+            }
+
+            if case .failed(let message) = assistant.state {
+                Text(message)
+                    .font(M.font(12, .regular))
+                    .foregroundStyle(M.red)
+            } else {
+                Text("Het voorstel vult de velden hieronder in. Alles blijft daarna aanpasbaar; er gaat niets naar een server.")
+                    .font(M.font(12, .regular))
+                    .foregroundStyle(M.inkAlpha(0.55))
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(EdgeInsets(top: 18, leading: 24, bottom: 20, trailing: 24))
+        .background(M.paperDeep)
+        .overlay(alignment: .bottom) { HeavyRule() }
+    }
+
+    private func runAssistant() {
+        assistant.clearError()
+        let text = describing
+        Task {
+            guard let suggestion = await assistant.suggest(from: text) else { return }
+            apply(suggestion)
+        }
+    }
+
+    private func apply(_ suggestion: GameSuggestion) {
+        name = suggestion.name
+        mono = suggestion.mono
+        monoWasEdited = true
+        mode = suggestion.mode
+        roundCount = suggestion.roundCount
+        winsByLowest = suggestion.winsByLowest
+        allowNegative = suggestion.allowNegative
+        minPlayers = suggestion.minPlayers
+        maxPlayers = suggestion.maxPlayers
+        eliminationLimit = suggestion.eliminationLimit
+        unitLabel = suggestion.unitLabel
+        roundLabels = suggestion.roundLabels
+        supportsJokers = suggestion.supportsJokers
     }
 
     // MARK: - Naam en monogram
@@ -188,7 +267,8 @@ struct CustomGameScreen: View {
             case .roundsCumulative:
                 fieldRow(roundsField, winnerField)
                 fieldRow(negativeField, playersField)
-                fieldRow(jokerField, EmptyView())
+                fieldRow(jokerField, unitField)
+                if !roundLabels.isEmpty { roundLabelsBlock }
             case .winnerOnly:
                 fieldRow(recordField, playersField)
             case .scorecard:
@@ -264,6 +344,48 @@ struct CustomGameScreen: View {
                     .foregroundStyle(M.inkAlpha(0.55))
             }
         }
+    }
+
+    private var unitField: some View {
+        field("Wat tel je") {
+            HardTextField(placeholder: "punten", text: $unitLabel, fontSize: 15, minHeight: 44)
+                .frame(maxWidth: 220)
+        }
+    }
+
+    /// De opdrachten per ronde, zoals Jokeren die kent.
+    private var roundLabelsBlock: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("Opdracht per ronde")
+                .padding(EdgeInsets(top: 16, leading: 24, bottom: 10, trailing: 24))
+            Hairline()
+            ForEach(Array(roundLabels.enumerated()), id: \.offset) { index, label in
+                HStack(spacing: 12) {
+                    Text("\(index + 1)")
+                        .font(M.font(13, .regular))
+                        .foregroundStyle(M.inkAlpha(0.4))
+                        .frame(width: 16, alignment: .trailing)
+                    Text(label)
+                        .font(M.font(14, .semiBold))
+                        .foregroundStyle(M.ink)
+                    Spacer(minLength: 0)
+                    Button {
+                        roundLabels.remove(at: index)
+                        roundCount = roundLabels.count
+                    } label: {
+                        Text("Verwijder")
+                            .font(M.font(11.5, .semiBold))
+                            .foregroundStyle(M.red)
+                            .frame(minHeight: M.tap)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 24)
+                .frame(minHeight: 46)
+                Hairline()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var jokerField: some View {
@@ -418,6 +540,8 @@ struct CustomGameScreen: View {
         maxPlayers = existing.maxPlayers
         eliminationLimit = existing.eliminationLimit
         supportsJokers = existing.supportsJokers
+        unitLabel = existing.unitLabel
+        roundLabels = existing.roundLabels
     }
 
     private func save() {
@@ -440,6 +564,9 @@ struct CustomGameScreen: View {
         target.maxPlayers = maxPlayers
         target.eliminationLimit = eliminationLimit
         target.supportsJokers = mode == .roundsCumulative && supportsJokers
+        target.unitLabel = unitLabel.trimmingCharacters(in: .whitespaces).isEmpty
+            ? "punten" : unitLabel.trimmingCharacters(in: .whitespaces)
+        target.roundLabels = mode == .roundsCumulative ? roundLabels : []
         target.subtitleNote = ""
         target.scorecardData = mode == .scorecard ? borrowedSpec?.encoded() : nil
 

@@ -24,6 +24,9 @@ enum Storage {
 
     private(set) static var mode: Mode = .local(reason: "Nog niet geopend")
 
+    /// Eén container voor de app én voor Siri en Shortcuts.
+    static let shared: ModelContainer = makeContainer()
+
     static let schema = Schema([
         Player.self, GameTemplate.self, Match.self,
         MatchRound.self, ScoreEntry.self, ScoreCard.self

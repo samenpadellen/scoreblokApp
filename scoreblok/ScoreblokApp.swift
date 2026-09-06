@@ -3,7 +3,7 @@ import SwiftData
 
 @main
 struct ScoreblokApp: App {
-    private let container = Storage.makeContainer()
+    private let container = Storage.shared
 
     var body: some Scene {
         WindowGroup {

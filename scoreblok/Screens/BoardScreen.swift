@@ -61,6 +61,12 @@ struct BoardScreen: View {
         }
         .overlay { if confirmFinish { finishPanel } }
         .overlay { if confirmNextRound { nextRoundPanel } }
+        // Met een fysiek toetsenbord tik je de ronde in zonder het scherm
+        // aan te raken: cijfers, return om te bevestigen, backspace om te
+        // wissen, en de pijlen om van cel te wisselen.
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(phases: .down) { press in handleKey(press) }
         .onAppear {
             selectedRound = match.currentRoundIndex
             selectedSeat = firstEmptySeat(in: selectedRound)
@@ -243,6 +249,14 @@ struct BoardScreen: View {
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(cellLabel(round: index, player: player, value: value))
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
+    private func cellLabel(round index: Int, player: Player, value: Int?) -> String {
+        let where_ = match.roundLabel(at: index) ?? "ronde \(index + 1)"
+        guard let value else { return "\(player.name), \(where_), nog niet ingevuld" }
+        return "\(player.name), \(where_), \(value) \(match.unitLabel)"
     }
 
     private func cellText(value: Int?, isSelected: Bool) -> String {
@@ -449,6 +463,9 @@ struct BoardScreen: View {
         }
         .buttonStyle(.plain)
         .disabled(signDisabled)
+        .accessibilityLabel(isConfirm ? "Bevestigen"
+                            : label == "⌫" ? "Wissen"
+                            : label == "±" ? "Plus of min" : label)
     }
 
     // MARK: - Ronde rond
@@ -535,6 +552,44 @@ struct BoardScreen: View {
     }
 
     // MARK: - Bediening
+
+    private func handleKey(_ press: KeyPress) -> KeyPress.Result {
+        guard !confirmFinish, !confirmNextRound else { return .ignored }
+
+        switch press.key {
+        case .return, .tab:
+            commit()
+            return .handled
+        case .delete, .deleteForward:
+            self.press("⌫")
+            return .handled
+        case .leftArrow:
+            if selectedSeat > 0 { select(round: selectedRound, seat: selectedSeat - 1) }
+            return .handled
+        case .rightArrow:
+            if selectedSeat + 1 < seats.count { select(round: selectedRound, seat: selectedSeat + 1) }
+            return .handled
+        case .upArrow:
+            if selectedRound > 0 { select(round: selectedRound - 1, seat: selectedSeat) }
+            return .handled
+        case .downArrow:
+            if selectedRound + 1 < rowCount { select(round: selectedRound + 1, seat: selectedSeat) }
+            return .handled
+        default:
+            break
+        }
+
+        guard let character = press.characters.first else { return .ignored }
+        if character.isNumber {
+            self.press(String(character))
+            return .handled
+        }
+        if character == "-" || character == "−" {
+            self.press("±")
+            return .handled
+        }
+        return .ignored
+    }
 
     private func press(_ label: String) {
         switch label {

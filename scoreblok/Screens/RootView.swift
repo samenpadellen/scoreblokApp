@@ -55,7 +55,9 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Query private var templates: [GameTemplate]
     @Query private var matches: [Match]
+    @Query private var players: [Player]
     @State private var router = Router()
+    @State private var pending = PendingAction.shared
 
     /// Het lopende potje, als er een is.
     private var openMatch: Match? {
@@ -106,6 +108,24 @@ struct RootView: View {
         .task {
             ArchivoFont.registerIfNeeded()
             BuiltInGames.seedIfNeeded(in: context)
+        }
+        .onChange(of: pending.startGameID) { _, id in
+            // Siri of Shortcuts heeft een spel gekozen.
+            guard let id, let template = templates.first(where: { $0.id == id }) else { return }
+            router.screen = .setup(template)
+            pending.startGameID = nil
+        }
+        .task(id: matches.count) {
+            SpotlightIndex.reindex(matches: matches, players: players)
+        }
+        .onOpenURL { url in
+            // Vanuit Spotlight of een deeplink: open het potje of de speler.
+            guard let id = UUID(uuidString: url.lastPathComponent) else { return }
+            if let match = matches.first(where: { $0.id == id }) {
+                router.screen = match.mode == .scorecard ? .card(match) : .board(match)
+            } else if let player = players.first(where: { $0.id == id }) {
+                router.screen = .detail(player)
+            }
         }
         .onChange(of: matches.count) { _, _ in
             // Selectie opschonen als het geopende potje verdwenen is.

@@ -8,6 +8,7 @@ struct FinishScreen: View {
     @Environment(\.modelContext) private var context
 
     private var standings: [Standing] { match.standings }
+    @State private var scorecardURL: URL?
 
     var body: some View {
         ScrollView {
@@ -18,6 +19,9 @@ struct FinishScreen: View {
                 HeavyRule()
                 actions
             }
+        }
+        .task(id: match.id) {
+            scorecardURL = ScorecardExport.pdf(for: match)
         }
     }
 
@@ -186,6 +190,20 @@ struct FinishScreen: View {
             .buttonStyle(.plain)
 
             Rectangle().fill(M.hairline).frame(width: 1)
+
+            if let scorecardURL {
+                ShareLink(item: scorecardURL) {
+                    Text("Deel het blaadje")
+                        .font(M.font(15, .extraBold))
+                        .foregroundStyle(M.ink)
+                        .frame(width: 200, alignment: .leading)
+                        .frame(minHeight: 76)
+                        .padding(.horizontal, 24)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                Rectangle().fill(M.hairline).frame(width: 1)
+            }
 
             Button { router.screen = .play } label: {
                 Text("Klaar")

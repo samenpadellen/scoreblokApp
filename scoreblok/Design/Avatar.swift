@@ -106,6 +106,7 @@ struct PlayerMark: View {
             .fill(player.inkColor)
             .frame(width: size, height: size)
             .background(player.color)
+            .accessibilityLabel(player.name)
     }
 }
 
