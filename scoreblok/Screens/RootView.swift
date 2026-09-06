@@ -87,7 +87,7 @@ struct RootView: View {
                 onScenePhase: { phase in
                     if phase != .active {
                         Storage.save(context)
-                        SnapshotWriter.update(from: matches)
+                        SnapshotWriter.update(from: matches, players: players)
                     }
                 },
                 onAppear: {
@@ -102,7 +102,7 @@ struct RootView: View {
                 pendingGameID: pending.startGameID,
                 matchCount: matches.count,
                 onMatchCountChange: {
-                    SnapshotWriter.update(from: matches)
+                    SnapshotWriter.update(from: matches, players: players)
                     if spotlightEnabled {
                         SpotlightIndex.reindex(matches: matches, players: players)
                     }
@@ -113,7 +113,14 @@ struct RootView: View {
                     default: break
                     }
                 },
-                onOpen: { id in
+                onOpen: { url in
+                    // scoreblok://match/<uuid>, scoreblok://setup, of een
+                    // Spotlight-treffer op id.
+                    if url.host() == "setup" || url.lastPathComponent == "setup" {
+                        if let template = templates.first { router.screen = .setup(template) }
+                        return
+                    }
+                    guard let id = UUID(uuidString: url.lastPathComponent) else { return }
                     if let match = matches.first(where: { $0.id == id }) {
                         router.screen = match.mode == .scorecard ? .card(match) : .board(match)
                     } else if let player = players.first(where: { $0.id == id }) {
@@ -344,7 +351,7 @@ private struct LifecycleActions: ViewModifier {
     let pendingGameID: UUID?
     let matchCount: Int
     let onMatchCountChange: () -> Void
-    let onOpen: (UUID) -> Void
+    let onOpen: (URL) -> Void
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -357,9 +364,6 @@ private struct LifecycleActions: ViewModifier {
             }
             .task(id: matchCount) { onMatchCountChange() }
             .onChange(of: matchCount) { _, _ in onMatchCountChange() }
-            .onOpenURL { url in
-                guard let id = UUID(uuidString: url.lastPathComponent) else { return }
-                onOpen(id)
-            }
+            .onOpenURL { url in onOpen(url) }
     }
 }

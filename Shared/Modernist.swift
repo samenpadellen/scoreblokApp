@@ -144,3 +144,27 @@ extension View {
         tracking(em * size)
     }
 }
+
+
+// MARK: - Opmaak
+
+extension Double {
+    /// Nederlands decimaalteken, zoals in het ontwerp ("2,3").
+    func dutch(_ places: Int = 1) -> String {
+        String(format: "%.\(places)f", self).replacingOccurrences(of: ".", with: ",")
+    }
+
+    var percentText: String { "\(Int((self * 100).rounded()))%" }
+}
+
+extension Int {
+    var signedText: String {
+        self > 0 ? "+\(self)" : (self < 0 ? "−\(abs(self))" : "0")
+    }
+
+    /// "▲ +2", "▼ −3" of "—" voor een trendregel.
+    var trendText: String {
+        if self == 0 { return "—" }
+        return self > 0 ? "▲ +\(self)" : "▼ −\(abs(self))"
+    }
+}
