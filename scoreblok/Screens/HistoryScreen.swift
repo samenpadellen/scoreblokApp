@@ -272,11 +272,13 @@ struct HistoryScreen: View {
 
         return VStack(spacing: 0) {
             HStack(spacing: 0) {
-                Text("RONDE")
+                Text(match.hasRoundLabels ? "RONDE · OPDRACHT" : "RONDE")
                     .font(M.font(10, .semiBold))
                     .tracking(em: 0.12, size: 10)
                     .foregroundStyle(M.inkAlpha(0.45))
-                    .frame(width: M.roundColumnWidth)
+                    .padding(.horizontal, match.hasRoundLabels ? 14 : 0)
+                    .frame(width: match.hasRoundLabels ? 168 : M.roundColumnWidth,
+                           alignment: match.hasRoundLabels ? .leading : .center)
                     .frame(maxHeight: .infinity, alignment: .bottom)
                     .padding(.vertical, 10)
                     .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
@@ -308,11 +310,24 @@ struct HistoryScreen: View {
 
             ForEach(rounds) { round in
                 HStack(spacing: 0) {
-                    Text(match.mode == .finalScore ? "EIND" : "\(round.index + 1)")
-                        .font(M.font(13, .semiBold))
-                        .foregroundStyle(M.inkAlpha(0.45))
-                        .frame(width: M.roundColumnWidth)
-                        .frame(minHeight: 44)
+                    Group {
+                        if let label = match.roundLabel(at: round.index) {
+                            HStack(spacing: 10) {
+                                Text("\(round.index + 1)")
+                                    .foregroundStyle(M.inkAlpha(0.35))
+                                    .frame(width: 12, alignment: .trailing)
+                                Text(label).lineLimit(1).minimumScaleFactor(0.85)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 14)
+                        } else {
+                            Text(match.mode == .finalScore ? "EIND" : "\(round.index + 1)")
+                        }
+                    }
+                    .font(M.font(12.5, .semiBold))
+                    .foregroundStyle(M.inkAlpha(0.45))
+                    .frame(width: match.hasRoundLabels ? 168 : M.roundColumnWidth)
+                    .frame(minHeight: 44)
                         .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
 
                     ForEach(seats) { player in

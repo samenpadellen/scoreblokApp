@@ -19,6 +19,11 @@ struct BoardScreen: View {
     private var standings: [Standing] { match.standings }
     private var leaderID: UUID? { standings.first?.player.id }
     private var rowCount: Int { match.displayedRoundCount }
+    /// De rondekolom is smal bij losse nummers en breed als er een opdracht
+    /// per ronde bij staat.
+    private var roundColumnWidth: CGFloat {
+        match.hasRoundLabels ? 168 : M.roundColumnWidth
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -91,11 +96,13 @@ struct BoardScreen: View {
 
     private var headerRow: some View {
         HStack(spacing: 0) {
-            Text("RONDE")
+            Text(match.hasRoundLabels ? "RONDE · OPDRACHT" : "RONDE")
                 .font(M.font(10, .semiBold))
                 .tracking(em: 0.12, size: 10)
                 .foregroundStyle(M.inkAlpha(0.45))
-                .frame(width: M.roundColumnWidth, alignment: .center)
+                .padding(.horizontal, match.hasRoundLabels ? 14 : 0)
+                .frame(width: roundColumnWidth,
+                       alignment: match.hasRoundLabels ? .leading : .center)
                 .frame(maxHeight: .infinity, alignment: .bottom)
                 .padding(.vertical, 10)
                 .overlay(alignment: .trailing) { columnRule }
@@ -139,10 +146,8 @@ struct BoardScreen: View {
     private func scoreRow(_ index: Int) -> some View {
         let isCurrent = index == match.currentRoundIndex
         return HStack(spacing: 0) {
-            Text(rowLabel(index))
-                .font(M.font(isCurrent ? 14 : 13, isCurrent ? .extraBold : .regular))
-                .foregroundStyle(index <= match.currentRoundIndex ? M.inkAlpha(0.6) : M.inkAlpha(0.3))
-                .frame(width: M.roundColumnWidth)
+            roundLabelCell(index, isCurrent: isCurrent)
+                .frame(width: roundColumnWidth)
                 .frame(minHeight: 46)
                 .overlay(alignment: .trailing) { columnRule }
 
@@ -153,8 +158,30 @@ struct BoardScreen: View {
         .background(isCurrent ? M.redTint : .clear)
     }
 
-    private func rowLabel(_ index: Int) -> String {
-        match.mode == .finalScore ? "EIND" : "\(index + 1)"
+    @ViewBuilder
+    private func roundLabelCell(_ index: Int, isCurrent: Bool) -> some View {
+        let dimmed = index <= match.currentRoundIndex ? M.inkAlpha(0.6) : M.inkAlpha(0.3)
+
+        if let label = match.roundLabel(at: index) {
+            HStack(spacing: 10) {
+                Text("\(index + 1)")
+                    .font(M.font(13, .regular))
+                    .foregroundStyle(index <= match.currentRoundIndex
+                                     ? M.inkAlpha(0.4) : M.inkAlpha(0.25))
+                    .frame(width: 12, alignment: .trailing)
+                Text(label)
+                    .font(M.font(12.5, isCurrent ? .extraBold : .semiBold))
+                    .foregroundStyle(dimmed)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+        } else {
+            Text(match.mode == .finalScore ? "EIND" : "\(index + 1)")
+                .font(M.font(isCurrent ? 14 : 13, isCurrent ? .extraBold : .regular))
+                .foregroundStyle(dimmed)
+        }
     }
 
     private func cell(round index: Int, seat: Int, player: Player) -> some View {
@@ -198,7 +225,7 @@ struct BoardScreen: View {
                 .font(M.font(9.5, .semiBold))
                 .tracking(em: 0.1, size: 9.5)
                 .foregroundStyle(M.inkAlpha(0.45))
-                .frame(width: M.roundColumnWidth)
+                .frame(width: roundColumnWidth)
                 .frame(minHeight: 44)
                 .overlay(alignment: .trailing) { columnRule }
 
@@ -255,7 +282,11 @@ struct BoardScreen: View {
     private var selectionLabel: String {
         guard seats.indices.contains(selectedSeat) else { return "—" }
         let name = seats[selectedSeat].name
-        return match.mode == .finalScore ? name : "\(name) · ronde \(selectedRound + 1)"
+        if match.mode == .finalScore { return name }
+        if let label = match.roundLabel(at: selectedRound) {
+            return "\(name) · \(label.lowercased())"
+        }
+        return "\(name) · ronde \(selectedRound + 1)"
     }
 
     private var selectionHint: String {

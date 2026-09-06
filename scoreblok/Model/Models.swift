@@ -51,6 +51,9 @@ final class GameTemplate {
     /// Grens waarboven een speler afvalt (alleen bij de modus Afvallen).
     var eliminationLimit: Int = 10
     var scorecardData: Data?
+    /// Opdracht per ronde, bijvoorbeeld "Drie op een rij". Leeg laat de app
+    /// gewoon rondenummers tonen.
+    var roundLabels: [String] = []
     var isBuiltIn: Bool = false
     /// Letterlijke ondertitel uit het sjabloon; leeg laat de app hem afleiden.
     var subtitleNote: String = ""
@@ -67,6 +70,7 @@ final class GameTemplate {
          maxPlayers: Int = 8,
          eliminationLimit: Int = 10,
          scorecard: ScorecardSpec? = nil,
+         roundLabels: [String] = [],
          isBuiltIn: Bool = false,
          subtitleNote: String = "",
          sortIndex: Int = 0) {
@@ -81,6 +85,7 @@ final class GameTemplate {
         self.maxPlayers = maxPlayers
         self.eliminationLimit = eliminationLimit
         self.scorecardData = scorecard?.encoded()
+        self.roundLabels = roundLabels
         self.isBuiltIn = isBuiltIn
         self.subtitleNote = subtitleNote
         self.sortIndex = sortIndex
@@ -130,6 +135,7 @@ final class Match {
     var allowNegative: Bool = false
     var eliminationLimit: Int = 10
     var scorecardData: Data?
+    var roundLabels: [String] = []
 
     var startedAt: Date = Date.now
     var endedAt: Date?
@@ -156,6 +162,7 @@ final class Match {
         self.allowNegative = template.allowNegative
         self.eliminationLimit = template.eliminationLimit
         self.scorecardData = template.scorecardData
+        self.roundLabels = template.roundLabels
         self.startedAt = .now
     }
 
@@ -193,6 +200,14 @@ final class Match {
         if roundCount > 0 { return roundCount }
         return max(rounds.count + 1, 1)
     }
+
+    /// De opdracht van een ronde, als het spel die kent.
+    func roundLabel(at index: Int) -> String? {
+        guard roundLabels.indices.contains(index) else { return nil }
+        return roundLabels[index]
+    }
+
+    var hasRoundLabels: Bool { !roundLabels.isEmpty }
 
     func round(at index: Int) -> MatchRound? {
         rounds.first { $0.index == index }

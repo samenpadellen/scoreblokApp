@@ -30,6 +30,7 @@ struct ScorecardScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbar
+                .fixedSize(horizontal: false, vertical: true)
             HeavyRule()
             ScrollView {
                 VStack(spacing: 0) {
@@ -62,11 +63,13 @@ struct ScorecardScreen: View {
                             .padding(.horizontal, 16)
                             .frame(minHeight: M.tap)
                             .background(isOn ? M.ink : .clear)
+                            .overlay(alignment: .trailing) {
+                                if index < seats.count - 1 {
+                                    Rectangle().fill(M.ruleHeavy).frame(width: 1)
+                                }
+                            }
                     }
                     .buttonStyle(.plain)
-                    if index < seats.count - 1 {
-                        Rectangle().fill(M.ruleHeavy).frame(width: 1)
-                    }
                 }
             }
             .overlay(Rectangle().stroke(M.ruleHeavy, lineWidth: 1))
@@ -295,7 +298,7 @@ struct ScorecardScreen: View {
         ModalPanel(title: editingColumn?.label ?? "", onClose: { editingColumn = nil }) {
             VStack(alignment: .leading, spacing: 16) {
                 HardTextField(placeholder: "0", text: $editingText, fontSize: 28, minHeight: 64)
-                    .keyboardType(.numbersAndPunctuation)
+                    .numericKeyboard()
                 HStack(spacing: 10) {
                     OutlineButton(title: "Leegmaken") {
                         if let column = editingColumn, let card {

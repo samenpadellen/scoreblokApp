@@ -7,6 +7,16 @@ extension View {
     func tracking(em: CGFloat, size: CGFloat) -> some View {
         tracking(em * size)
     }
+
+    /// Numeriek toetsenbord op de platforms die er een hebben; elders een
+    /// gewoon veld, want het hardwaretoetsenbord doet het werk al.
+    func numericKeyboard() -> some View {
+        #if os(iOS) || os(visionOS)
+        return keyboardType(.numbersAndPunctuation)
+        #else
+        return self
+        #endif
+    }
 }
 
 /// Klein kapitaal kopje boven een blok: 10px/800, ruime letterspatiëring.
@@ -191,11 +201,14 @@ struct SegmentedBar<T: Hashable>: View {
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: M.tap)
                         .background(isOn ? M.ink : .clear)
+                        // Als overlay, zodat de lijn de balk niet oprekt.
+                        .overlay(alignment: .trailing) {
+                            if index < options.count - 1 {
+                                Rectangle().fill(M.ruleHeavy).frame(width: 1)
+                            }
+                        }
                 }
                 .buttonStyle(.plain)
-                if index < options.count - 1 {
-                    Rectangle().fill(M.ruleHeavy).frame(width: 1)
-                }
             }
         }
         .overlay(Rectangle().stroke(M.ruleHeavy, lineWidth: 1))

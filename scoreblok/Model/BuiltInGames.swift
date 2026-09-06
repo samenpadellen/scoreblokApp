@@ -67,6 +67,17 @@ enum BuiltInGames {
         )
     }
 
+    /// De opdrachten van Jokeren, in speelvolgorde. Elke ronde vraagt een
+    /// andere combinatie; wie niet uitkomt houdt de punten van zijn kaarten.
+    static let jokerenRounds = [
+        "Drie op een rij",
+        "Drie dezelfde",
+        "Vier op een rij",
+        "Vier dezelfde",
+        "Vijf op een rij",
+        "In één keer uit"
+    ]
+
     /// De lijst zoals hij op het Spelen-scherm staat, in deze volgorde.
     static func all() -> [GameTemplate] {
         var index = 0
@@ -74,7 +85,8 @@ enum BuiltInGames {
 
         return [
             GameTemplate(name: "Jokeren", mono: "JO", mode: .roundsCumulative,
-                         roundCount: 9, winsByLowest: true,
+                         roundCount: jokerenRounds.count, winsByLowest: true,
+                         roundLabels: jokerenRounds,
                          isBuiltIn: true, sortIndex: next()),
 
             GameTemplate(name: "Keer op Keer", mono: "KK", mode: .scorecard,

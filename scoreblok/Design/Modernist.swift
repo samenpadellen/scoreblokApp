@@ -93,15 +93,21 @@ enum ArchivoFont {
         didRegister = true
 
         for weight in [ArchivoWeight.regular, .semiBold, .extraBold] {
-            guard let url = Bundle.main.url(forResource: weight.fileName, withExtension: "ttf"),
-                  let data = try? Data(contentsOf: url),
-                  let provider = CGDataProvider(data: data as CFData),
-                  let font = CGFont(provider) else { continue }
+            guard let url = Bundle.main.url(forResource: weight.fileName, withExtension: "ttf")
+            else { continue }
 
-            CTFontManagerRegisterGraphicsFont(font, nil)
-            if let name = font.postScriptName as String? {
-                registeredNames[weight] = name
-            }
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+
+            // De PostScript-naam uit het bestand halen; die hebben we nodig
+            // om er via Font.custom naar te verwijzen.
+            guard let descriptors = CTFontManagerCreateFontDescriptorsFromURL(url as CFURL)
+                    as? [CTFontDescriptor],
+                  let descriptor = descriptors.first,
+                  let name = CTFontDescriptorCopyAttribute(descriptor, kCTFontNameAttribute)
+                    as? String
+            else { continue }
+
+            registeredNames[weight] = name
         }
     }
 

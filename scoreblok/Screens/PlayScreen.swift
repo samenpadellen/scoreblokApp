@@ -3,7 +3,6 @@ import SwiftData
 
 struct PlayScreen: View {
     @Environment(Router.self) private var router
-    @Environment(\.modelContext) private var context
     @Query(sort: \GameTemplate.sortIndex) private var templates: [GameTemplate]
     @Query(sort: \Match.startedAt, order: .reverse) private var matches: [Match]
     @Query private var players: [Player]
@@ -220,17 +219,12 @@ struct PlayScreen: View {
     }
 
     private var emptyHint: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Nog geen spelers. Kies een spel om er meteen een paar toe te voegen, of ga naar Spelers.")
-                .font(M.font(12.5, .regular))
-                .foregroundStyle(M.inkAlpha(0.55))
-                .frame(maxWidth: 640, alignment: .leading)
-            OutlineButton(title: "Voorbeeldavond laden") {
-                SampleData.populate(in: context)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(EdgeInsets(top: 20, leading: 28, bottom: 28, trailing: 28))
+        Text("Nog geen spelers. Kies een spel — je voegt de spelers toe bij het opzetten van het potje.")
+            .font(M.font(12.5, .regular))
+            .foregroundStyle(M.inkAlpha(0.55))
+            .frame(maxWidth: 640, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(EdgeInsets(top: 20, leading: 28, bottom: 28, trailing: 28))
     }
 
     private func start(_ template: GameTemplate) {

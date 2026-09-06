@@ -84,14 +84,9 @@ struct PlayersScreen: View {
                 .font(M.font(13, .regular))
                 .foregroundStyle(M.inkAlpha(0.6))
                 .frame(maxWidth: 560, alignment: .leading)
-            HStack(spacing: 10) {
-                SolidButton(title: "Nieuw profiel") {
-                    newName = ""
-                    addingPlayer = true
-                }
-                OutlineButton(title: "Voorbeeldavond laden") {
-                    SampleData.populate(in: context)
-                }
+            SolidButton(title: "Nieuw profiel") {
+                newName = ""
+                addingPlayer = true
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
