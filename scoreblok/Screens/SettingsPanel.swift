@@ -19,6 +19,7 @@ struct SettingsPanel: View {
     @AppStorage(SettingsKey.statsPeriod) private var statsPeriod = StatsPeriod.days90.rawValue
 
     @State private var backupURL: URL?
+    @State private var cloud = CloudStatus.shared
     @State private var importing = false
     @State private var message: String?
     @State private var isError = false
@@ -30,6 +31,7 @@ struct SettingsPanel: View {
                     meSection
                     playSection
                     statsSection
+                    cloudSection
                     storageSection
                     searchSection
                     aboutSection
@@ -102,16 +104,54 @@ struct SettingsPanel: View {
         }
     }
 
+    // MARK: - iCloud
+
+    private var cloudSection: some View {
+        section(cloud.title, tint: cloud.isHealthy ? M.inkAlpha(0.5) : M.red) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(cloud.detail)
+                    .font(M.font(14, .semiBold))
+                    .foregroundStyle(cloud.isHealthy ? M.ink : M.red)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                infoRow("Account", cloud.account.summary)
+                infoRow("Container", Storage.cloudContainerID)
+                if let sync = cloud.lastSync {
+                    infoRow("Laatste \(sync.kind)",
+                            "\(sync.at.formatted(.dateTime.day().month(.abbreviated).hour().minute()))"
+                            + (sync.succeeded ? "" : " · mislukt"))
+                }
+
+                Text(cloud.containerIsCloud
+                     ? "Wat je invult gaat naar je andere apparaten zodra ze online zijn. Bewaar toch af en toe een reservekopie; iCloud is een tweede kopie, geen archief."
+                     : "De app draait zonder iCloud. Zet iCloud aan op dit apparaat en start de app opnieuw.")
+                    .font(M.font(12, .regular))
+                    .foregroundStyle(M.inkAlpha(0.55))
+                    .lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 10) {
+                    OutlineButton(title: "Opnieuw controleren") { cloud.refresh() }
+                    Spacer(minLength: 0)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 18)
+        }
+    }
+
     // MARK: - Opslag
 
     private var storageSection: some View {
-        section(Storage.mode.title,
+        section("Reservekopie",
                 tint: Storage.mode.isFailed ? M.red : M.inkAlpha(0.5)) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(Storage.mode.detail)
-                    .font(M.font(14, .semiBold))
-                    .foregroundStyle(Storage.mode.isFailed ? M.red : M.ink)
-                    .fixedSize(horizontal: false, vertical: true)
+                if Storage.mode.isFailed {
+                    Text(Storage.mode.detail)
+                        .font(M.font(14, .semiBold))
+                        .foregroundStyle(M.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Text(counts)
                     .font(M.font(12, .regular))
                     .foregroundStyle(M.inkAlpha(0.55))

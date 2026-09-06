@@ -60,6 +60,7 @@ struct RootView: View {
     @Query private var players: [Player]
     @State private var router = Router()
     @State private var pending = PendingAction.shared
+    @State private var cloud = CloudStatus.shared
     @State private var showingSettings = false
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.spotlight) private var spotlightEnabled = true
@@ -87,7 +88,9 @@ struct RootView: View {
             .overlay { if showingSettings { SettingsPanel { showingSettings = false } } }
             .modifier(LifecycleActions(
                 onScenePhase: { phase in
-                    if phase != .active {
+                    if phase == .active {
+                        cloud.refresh()
+                    } else {
                         Storage.save(context)
                         SnapshotWriter.update(from: matches, players: players)
                     }
@@ -95,6 +98,7 @@ struct RootView: View {
                 onAppear: {
                     ArchivoFont.registerIfNeeded()
                     BuiltInGames.seedIfNeeded(in: context)
+                    cloud.start(containerIsCloud: Storage.mode.isCloud)
                 },
                 onPendingGame: { id in
                     guard let template = templates.first(where: { $0.id == id }) else { return }
@@ -159,6 +163,20 @@ struct RootView: View {
             }
             .environment(\.contentWidth, contentWidth)
         }
+    }
+
+    /// Wat er onderin de zijbalk staat: de opslag als die stuk is, anders
+    /// wat iCloud werkelijk doet.
+    private var storageTitle: String {
+        Storage.mode.isFailed ? Storage.mode.title : cloud.title
+    }
+
+    private var storageDetail: String {
+        Storage.mode.isFailed ? Storage.mode.detail : cloud.detail
+    }
+
+    private var storageIsProblem: Bool {
+        Storage.mode.isFailed || (cloud.containerIsCloud && !cloud.isHealthy)
     }
 
     /// Het werkvlak met, als er een potje loopt, de balk eronder.
@@ -270,11 +288,11 @@ struct RootView: View {
                 showingSettings = true
             } label: {
                 VStack(alignment: .leading, spacing: 6) {
-                    SectionLabel("Instellingen · \(Storage.mode.title)",
-                                 tint: Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
-                    Text(Storage.mode.detail)
+                    SectionLabel("Instellingen · \(storageTitle)",
+                                 tint: storageIsProblem ? M.red : M.inkAlpha(0.5))
+                    Text(storageDetail)
                         .font(M.font(12.5, .regular))
-                        .foregroundStyle(Storage.mode.isFailed ? M.red : M.inkAlpha(0.7))
+                        .foregroundStyle(storageIsProblem ? M.red : M.inkAlpha(0.7))
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
                 }

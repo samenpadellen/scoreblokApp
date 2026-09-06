@@ -19,7 +19,13 @@ final class Player {
     var isArchived: Bool = false
     var createdAt: Date = Date.now
 
-    var matches: [Match] = []
+    /// CloudKit eist dat elke relatie optioneel is; daarom optioneel
+    /// opgeslagen en niet-optioneel benaderd.
+    var storedMatches: [Match]?
+    var matches: [Match] {
+        get { storedMatches ?? [] }
+        set { storedMatches = newValue }
+    }
 
     init(name: String, rampIndex: Int, avatarIndex: Int? = nil, isMe: Bool = false) {
         self.id = UUID()
@@ -172,14 +178,26 @@ final class Match {
     var abandonedAt: Date?
     var seatOrder: [String] = []
 
-    @Relationship(inverse: \Player.matches)
-    var players: [Player] = []
+    @Relationship(inverse: \Player.storedMatches)
+    var storedPlayers: [Player]?
+    var players: [Player] {
+        get { storedPlayers ?? [] }
+        set { storedPlayers = newValue }
+    }
 
     @Relationship(deleteRule: .cascade, inverse: \MatchRound.match)
-    var rounds: [MatchRound] = []
+    var storedRounds: [MatchRound]?
+    var rounds: [MatchRound] {
+        get { storedRounds ?? [] }
+        set { storedRounds = newValue }
+    }
 
     @Relationship(deleteRule: .cascade, inverse: \ScoreCard.match)
-    var cards: [ScoreCard] = []
+    var storedCards: [ScoreCard]?
+    var cards: [ScoreCard] {
+        get { storedCards ?? [] }
+        set { storedCards = newValue }
+    }
 
     init(template: GameTemplate) {
         self.id = UUID()
@@ -387,7 +405,11 @@ final class MatchRound {
     var match: Match?
 
     @Relationship(deleteRule: .cascade, inverse: \ScoreEntry.round)
-    var entries: [ScoreEntry] = []
+    var storedEntries: [ScoreEntry]?
+    var entries: [ScoreEntry] {
+        get { storedEntries ?? [] }
+        set { storedEntries = newValue }
+    }
 
     init(index: Int) {
         self.index = index

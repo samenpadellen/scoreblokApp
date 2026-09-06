@@ -58,6 +58,10 @@ enum Storage {
 
     static let schema = Schema(versionedSchema: SchemaV1.self)
 
+    /// Moet letterlijk overeenkomen met de container in het Developer-portaal
+    /// en met de entitlements.
+    static let cloudContainerID = "iCloud.nl.scoreblok.app"
+
     static let shared: ModelContainer = makeContainer()
 
     static func makeContainer() -> ModelContainer {
@@ -81,10 +85,13 @@ enum Storage {
 
         do {
             let container = try open(cloud: true)
+            // Let op: dit betekent alleen dat de winkel openging. Of er ook
+            // echt gesynchroniseerd wordt hangt af van het iCloud-account;
+            // dat bewaakt CloudStatus.
             mode = .cloud
             return container
         } catch {
-            // Geen iCloud-rechten of geen account: gewoon lokaal verder.
+            // Geen iCloud-rechten: gewoon lokaal verder.
         }
 
         do {
