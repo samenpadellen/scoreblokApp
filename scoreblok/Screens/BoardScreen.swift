@@ -9,6 +9,7 @@ struct BoardScreen: View {
     @Environment(\.contentWidth) private var contentWidth
     @Environment(\.isNarrow) private var isNarrow
     @Environment(\.isCompact) private var isCompact
+    @AppStorage(SettingsKey.confirmRoundEnd) private var confirmRoundEnd = true
 
     /// Geselecteerde cel: ronde-index en zitplaats.
     @State private var selectedRound = 0
@@ -678,8 +679,11 @@ struct BoardScreen: View {
         // door — maar niet zonder dat je de ronde hebt kunnen nakijken.
         let wasLastSeat = selectedSeat == seats.count - 1
         advanceSeat()
-        if wasLastSeat && match.isRoundFilled(selectedRound) {
+        guard wasLastSeat, match.isRoundFilled(selectedRound) else { return }
+        if confirmRoundEnd {
             confirmNextRound = true
+        } else {
+            advanceRound()
         }
     }
 
@@ -787,6 +791,7 @@ private struct FinishOrderBoard: View {
     @Environment(\.contentWidth) private var contentWidth
     @Environment(\.isNarrow) private var isNarrow
     @Environment(\.isCompact) private var isCompact
+    @AppStorage(SettingsKey.confirmRoundEnd) private var confirmRoundEnd = true
 
     private var seats: [Player] { match.orderedPlayers }
 

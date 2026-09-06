@@ -6,7 +6,7 @@ struct StatsScreen: View {
     @Query private var allMatches: [Match]
     @Query(sort: \Player.createdAt) private var players: [Player]
 
-    @State private var period: StatsPeriod = .days90
+    @State private var period: StatsPeriod = .preferred
     @State private var gameFilter: String? = nil
     @Environment(\.isNarrow) private var isNarrow
 

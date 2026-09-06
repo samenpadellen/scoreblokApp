@@ -12,8 +12,11 @@ struct HistoryScreen: View {
     @State private var playerFilter: UUID?
     @State private var yearFilter: Int?
     @Environment(\.isNarrow) private var isNarrow
+    @AppStorage(SettingsKey.showAbandoned) private var showAbandoned = true
 
-    private var finished: [Match] { matches.filter { $0.isFinished } }
+    private var finished: [Match] {
+        matches.filter { $0.isFinished && (showAbandoned || !$0.isAbandoned) }
+    }
 
     private var filtered: [Match] {
         finished.filter { match in

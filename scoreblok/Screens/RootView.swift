@@ -58,8 +58,9 @@ struct RootView: View {
     @Query private var players: [Player]
     @State private var router = Router()
     @State private var pending = PendingAction.shared
-    @State private var showingStorage = false
+    @State private var showingSettings = false
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage(SettingsKey.spotlight) private var spotlightEnabled = true
 
     /// Het lopende potje, als er een is.
     private var openMatch: Match? {
@@ -78,9 +79,48 @@ struct RootView: View {
     }
 
     var body: some View {
+        layout
+            .background(M.paper)
+            .environment(router)
+            .overlay { if showingSettings { SettingsPanel { showingSettings = false } } }
+            .modifier(LifecycleActions(
+                onScenePhase: { phase in if phase != .active { Storage.save(context) } },
+                onAppear: {
+                    ArchivoFont.registerIfNeeded()
+                    BuiltInGames.seedIfNeeded(in: context)
+                },
+                onPendingGame: { id in
+                    guard let template = templates.first(where: { $0.id == id }) else { return }
+                    router.screen = .setup(template)
+                    pending.startGameID = nil
+                },
+                pendingGameID: pending.startGameID,
+                matchCount: matches.count,
+                onMatchCountChange: {
+                    if spotlightEnabled {
+                        SpotlightIndex.reindex(matches: matches, players: players)
+                    }
+                    // Selectie opschonen als het geopende potje verdwenen is.
+                    switch router.screen {
+                    case .board(let m), .card(let m), .finish(let m):
+                        if !matches.contains(where: { $0.id == m.id }) { router.screen = .play }
+                    default: break
+                    }
+                },
+                onOpen: { id in
+                    if let match = matches.first(where: { $0.id == id }) {
+                        router.screen = match.mode == .scorecard ? .card(match) : .board(match)
+                    } else if let player = players.first(where: { $0.id == id }) {
+                        router.screen = .detail(player)
+                    }
+                }
+            ))
+    }
+
+    /// Drie maten: een volle zijbalk, een smallere, en onder de 620 pt
+    /// helemaal geen kolom meer maar een strook bovenin.
+    private var layout: some View {
         GeometryReader { proxy in
-            // Drie maten: een volle zijbalk, een smallere, en onder de
-            // 620 pt helemaal geen kolom meer maar een strook bovenin.
             let total = proxy.size.width
             let stacked = total < 620
             let sidebarWidth: CGFloat = total < 900 ? 168 : M.sidebarWidth
@@ -90,7 +130,7 @@ struct RootView: View {
                 if stacked {
                     VStack(spacing: 0) {
                         topBar
-                        Rectangle().fill(M.ruleHeavy).frame(width: nil, height: 2)
+                        Rectangle().fill(M.ruleHeavy).frame(height: 2)
                         workspace
                     }
                 } else {
@@ -102,43 +142,6 @@ struct RootView: View {
                 }
             }
             .environment(\.contentWidth, contentWidth)
-        }
-        .background(M.paper)
-        .environment(router)
-        .overlay { if showingStorage { StoragePanel { showingStorage = false } } }
-        .onChange(of: scenePhase) { _, phase in
-            // Naar de achtergrond: eerst zeker wegschrijven.
-            if phase != .active { Storage.save(context) }
-        }
-        .task {
-            ArchivoFont.registerIfNeeded()
-            BuiltInGames.seedIfNeeded(in: context)
-        }
-        .onChange(of: pending.startGameID) { _, id in
-            // Siri of Shortcuts heeft een spel gekozen.
-            guard let id, let template = templates.first(where: { $0.id == id }) else { return }
-            router.screen = .setup(template)
-            pending.startGameID = nil
-        }
-        .task(id: matches.count) {
-            SpotlightIndex.reindex(matches: matches, players: players)
-        }
-        .onOpenURL { url in
-            // Vanuit Spotlight of een deeplink: open het potje of de speler.
-            guard let id = UUID(uuidString: url.lastPathComponent) else { return }
-            if let match = matches.first(where: { $0.id == id }) {
-                router.screen = match.mode == .scorecard ? .card(match) : .board(match)
-            } else if let player = players.first(where: { $0.id == id }) {
-                router.screen = .detail(player)
-            }
-        }
-        .onChange(of: matches.count) { _, _ in
-            // Selectie opschonen als het geopende potje verdwenen is.
-            switch router.screen {
-            case .board(let m), .card(let m), .finish(let m):
-                if !matches.contains(where: { $0.id == m.id }) { router.screen = .play }
-            default: break
-            }
         }
     }
 
@@ -170,9 +173,9 @@ struct RootView: View {
                 Wordmark(size: 18, markSize: 26)
                 Spacer()
                 Button {
-                    showingStorage = true
+                    showingSettings = true
                 } label: {
-                    Text(Storage.mode.title.uppercased())
+                    Text("INSTELLINGEN")
                         .font(M.font(10, .semiBold))
                         .tracking(em: 0.12, size: 10)
                         .foregroundStyle(Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
@@ -226,10 +229,10 @@ struct RootView: View {
 
             Rectangle().fill(M.ruleHeavy).frame(height: 2)
             Button {
-                showingStorage = true
+                showingSettings = true
             } label: {
                 VStack(alignment: .leading, spacing: 6) {
-                    SectionLabel(Storage.mode.title,
+                    SectionLabel("Instellingen · \(Storage.mode.title)",
                                  tint: Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
                     Text(Storage.mode.detail)
                         .font(M.font(12.5, .regular))
@@ -300,5 +303,34 @@ struct RootView: View {
         case .custom(let template):
             CustomGameScreen(existing: template)
         }
+    }
+}
+
+/// De levenscyclus van het hoofdscherm in één modifier. Los van het scherm
+/// zelf, anders wordt de uitdrukking te groot voor de typecontrole.
+private struct LifecycleActions: ViewModifier {
+    let onScenePhase: (ScenePhase) -> Void
+    let onAppear: () -> Void
+    let onPendingGame: (UUID) -> Void
+    let pendingGameID: UUID?
+    let matchCount: Int
+    let onMatchCountChange: () -> Void
+    let onOpen: (UUID) -> Void
+
+    @Environment(\.scenePhase) private var scenePhase
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: scenePhase) { _, phase in onScenePhase(phase) }
+            .task { onAppear() }
+            .onChange(of: pendingGameID) { _, id in
+                if let id { onPendingGame(id) }
+            }
+            .task(id: matchCount) { onMatchCountChange() }
+            .onChange(of: matchCount) { _, _ in onMatchCountChange() }
+            .onOpenURL { url in
+                guard let id = UUID(uuidString: url.lastPathComponent) else { return }
+                onOpen(id)
+            }
     }
 }

@@ -53,6 +53,14 @@ enum SpotlightIndex {
         CSSearchableIndex.default().indexSearchableItems(items)
     }
 
+    /// Haalt alles uit de index, bijvoorbeeld als je het niet meer wilt.
+    static func removeAll() {
+        guard CSSearchableIndex.isIndexingAvailable() else { return }
+        CSSearchableIndex.default().deleteSearchableItems(
+            withDomainIdentifiers: [matchDomain, playerDomain]
+        )
+    }
+
     /// Haalt een potje of speler weer uit de index.
     static func remove(ids: [UUID]) {
         guard CSSearchableIndex.isIndexingAvailable(), !ids.isEmpty else { return }
