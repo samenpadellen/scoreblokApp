@@ -66,6 +66,10 @@ final class GameTemplate {
     /// alleen het totaal aantal kaarten dat je overhoudt.
     var showsAverages: Bool = true
     var isBuiltIn: Bool = false
+    /// Opgeborgen in de spellenkast: uit het overzicht, maar niet weg. De
+    /// gespeelde potjes blijven ongemoeid — die dragen hun eigen kopie van
+    /// de regels.
+    var isPutAway: Bool = false
     /// Letterlijke ondertitel uit het sjabloon; leeg laat de app hem afleiden.
     var subtitleNote: String = ""
     var sortIndex: Int = 0

@@ -377,19 +377,11 @@ struct ModalPanel<Content: View>: View {
     let onClose: () -> Void
     @ViewBuilder let content: () -> Content
 
-    /// Op een telefoon is het scherm smaller dan elk vast paneel; dan wint
-    /// het scherm.
-    @State private var panelWidth: CGFloat = .infinity
-
     var body: some View {
         ZStack {
-            GeometryReader { proxy in
-                M.ink.opacity(0.35)
-                    .onTapGesture(perform: onClose)
-                    .onAppear { panelWidth = proxy.size.width - 24 }
-                    .onChange(of: proxy.size.width) { _, new in panelWidth = new - 24 }
-            }
-            .ignoresSafeArea()
+            M.ink.opacity(0.35)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onClose)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
@@ -412,9 +404,12 @@ struct ModalPanel<Content: View>: View {
 
                 content()
             }
-            .frame(width: min(width, panelWidth))
+            // maxWidth in plaats van width: het paneel wordt nooit breder
+            // dan het scherm, hoe smal het toestel ook is.
+            .frame(maxWidth: width)
             .background(M.paper)
             .overlay(Rectangle().stroke(M.ink, lineWidth: 2))
+            .padding(.horizontal, 12)
         }
     }
 }

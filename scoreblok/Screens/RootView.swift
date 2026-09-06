@@ -24,10 +24,11 @@ enum Screen: Hashable {
     case stats
     case history
     case custom(GameTemplate?)
+    case cupboard
 
     var section: NavSection {
         switch self {
-        case .play, .setup, .board, .card, .finish: .play
+        case .play, .setup, .board, .card, .finish, .cupboard: .play
         case .players, .detail: .players
         case .stats: .stats
         case .history: .history
@@ -338,6 +339,8 @@ struct RootView: View {
             HistoryScreen()
         case .custom(let template):
             CustomGameScreen(existing: template)
+        case .cupboard:
+            CupboardScreen()
         }
     }
 }

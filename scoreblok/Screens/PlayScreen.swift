@@ -3,13 +3,16 @@ import SwiftData
 
 struct PlayScreen: View {
     @Environment(Router.self) private var router
-    @Query(sort: \GameTemplate.sortIndex) private var templates: [GameTemplate]
+    @Query(sort: \GameTemplate.sortIndex) private var allTemplates: [GameTemplate]
     @Query(sort: \Match.startedAt, order: .reverse) private var matches: [Match]
     @Query private var players: [Player]
     @Environment(\.isNarrow) private var isNarrow
     @Environment(\.isCompact) private var isCompact
 
     private var activePlayers: [Player] { players.filter { !$0.isArchived } }
+    /// Wat er op de plank staat; de rest zit in de spellenkast.
+    private var templates: [GameTemplate] { allTemplates.filter { !$0.isPutAway } }
+    private var putAwayCount: Int { allTemplates.count - templates.count }
     /// Alle potjes die nog lopen, laatst gespeeld bovenaan. Ze blijven staan
     /// tot je ze afrondt, ook als dat dagen later is.
     private var openMatches: [Match] {
@@ -51,18 +54,44 @@ struct PlayScreen: View {
 
                 SectionLabel("Laatst gespeeld")
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: 22, leading: 28, bottom: 8, trailing: 28))
+                    .padding(EdgeInsets(top: isCompact ? 16 : 22,
+                                        leading: isCompact ? 20 : 28,
+                                        bottom: 8,
+                                        trailing: isCompact ? 20 : 28))
                 Hairline()
-                GridRows(items: recent, columns: isCompact ? 1 : (isNarrow ? 2 : 4)) { template in
-                    recentCard(template)
+                if isCompact {
+                    ForEach(recent) { template in
+                        phoneRow(template, prominent: true)
+                        Hairline()
+                    }
+                } else {
+                    GridRows(items: recent, columns: isNarrow ? 2 : 4) { template in
+                        recentCard(template)
+                    }
                 }
 
                 SectionLabel("Alle spellen")
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: 22, leading: 28, bottom: 8, trailing: 28))
+                    .padding(EdgeInsets(top: isCompact ? 16 : 22,
+                                        leading: isCompact ? 20 : 28,
+                                        bottom: 8,
+                                        trailing: isCompact ? 20 : 28))
                 Hairline()
-                GridRows(items: others, columns: isCompact ? 1 : (isNarrow ? 2 : 3), trailing: { newGameRow }) { template in
-                    compactRow(template)
+                if isCompact {
+                    ForEach(others) { template in
+                        phoneRow(template, prominent: false)
+                        Hairline()
+                    }
+                    phoneNewGameRow
+                    Hairline()
+                    phoneCupboardRow
+                    Hairline()
+                } else {
+                    GridRows(items: others, columns: isNarrow ? 2 : 3,
+                             trailing: { newGameRow }) { template in
+                        compactRow(template)
+                    }
+                    cupboardRow
                 }
 
                 if players.isEmpty {
@@ -75,15 +104,31 @@ struct PlayScreen: View {
     // MARK: - Kop
 
     private var header: some View {
-        HStack(alignment: .bottom) {
-            ScreenTitle("Spelen")
-            Spacer()
-            Text("\(templates.count) SPELLEN · \(activePlayers.count) SPELERS")
-                .font(M.font(11, .semiBold))
-                .tracking(em: 0.1, size: 11)
-                .foregroundStyle(M.inkAlpha(0.55))
+        let count = Text("\(templates.count) SPELLEN · \(activePlayers.count) SPELERS")
+            .font(M.font(isCompact ? 10 : 11, .semiBold))
+            .tracking(em: isCompact ? 0.12 : 0.1, size: isCompact ? 10 : 11)
+            .foregroundStyle(M.inkAlpha(0.5))
+
+        return Group {
+            if isCompact {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Spelen")
+                        .font(M.font(32, .extraBold))
+                        .tracking(em: -0.025, size: 32)
+                        .foregroundStyle(M.ink)
+                    count
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(EdgeInsets(top: 12, leading: 20, bottom: 16, trailing: 20))
+            } else {
+                HStack(alignment: .bottom) {
+                    ScreenTitle("Spelen")
+                    Spacer()
+                    count
+                }
+                .padding(EdgeInsets(top: 24, leading: 28, bottom: 18, trailing: 28))
+            }
         }
-        .padding(EdgeInsets(top: 24, leading: 28, bottom: 18, trailing: 28))
     }
 
     // MARK: - Doorgaan met een open potje
@@ -255,6 +300,110 @@ struct PlayScreen: View {
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 18)
+        }
+    }
+
+    /// Op de telefoon geen kaarten maar rijen: laatst gespeeld wat zwaarder
+    /// gezet dan de rest, zoals het ontwerp voorschrijft.
+    private func phoneRow(_ template: GameTemplate, prominent: Bool) -> some View {
+        RowButton(minHeight: prominent ? 64 : 56) {
+            start(template)
+        } content: {
+            HStack(spacing: 14) {
+                GameMark(mono: template.mono,
+                         background: prominent && template.id == recent.first?.id ? M.red : M.ink,
+                         size: prominent ? 36 : 28)
+                if prominent {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(template.name)
+                            .font(M.font(15, .extraBold))
+                            .foregroundStyle(M.ink)
+                            .lineLimit(1)
+                        Text(template.subtitle)
+                            .font(M.font(11.5, .regular))
+                            .foregroundStyle(M.inkAlpha(0.5))
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Text("→")
+                        .font(M.font(15, .regular))
+                        .foregroundStyle(M.inkAlpha(0.3))
+                } else {
+                    Text(template.name)
+                        .font(M.font(14, .semiBold))
+                        .foregroundStyle(M.ink)
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text(template.subtitle)
+                        .font(M.font(11, .regular))
+                        .foregroundStyle(M.inkAlpha(0.45))
+                        .lineLimit(1)
+                        .layoutPriority(0)
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    /// De spellenkast: spellen die je niet speelt staan hier, niet in het
+    /// overzicht.
+    private var phoneCupboardRow: some View {
+        RowButton(minHeight: 56) {
+            router.screen = .cupboard
+        } content: {
+            HStack(spacing: 14) {
+                GameMark(mono: "··", background: M.inkAlpha(0.35), size: 28)
+                Text("Spellenkast")
+                    .font(M.font(14, .semiBold))
+                    .foregroundStyle(M.ink)
+                Spacer(minLength: 8)
+                Text(putAwayCount == 0 ? "alles op de plank"
+                     : "\(putAwayCount) opgeborgen")
+                    .font(M.font(11, .regular))
+                    .foregroundStyle(M.inkAlpha(0.45))
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private var cupboardRow: some View {
+        RowButton(minHeight: 56) {
+            router.screen = .cupboard
+        } content: {
+            HStack(spacing: 14) {
+                GameMark(mono: "··", background: M.inkAlpha(0.35), size: 30)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Spellenkast")
+                        .font(M.font(14.5, .semiBold))
+                        .foregroundStyle(M.ink)
+                    Text(putAwayCount == 0 ? "alles staat op de plank"
+                         : "\(putAwayCount) opgeborgen")
+                        .font(M.font(11.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 28)
+        }
+        .overlay(alignment: .top) { Hairline() }
+    }
+
+    private var phoneNewGameRow: some View {
+        RowButton(minHeight: 56) {
+            router.screen = .custom(nil)
+        } content: {
+            HStack(spacing: 14) {
+                Text("+")
+                    .font(M.font(15, .extraBold))
+                    .foregroundStyle(M.red)
+                    .frame(width: 28, height: 28)
+                    .overlay(Rectangle().stroke(M.red, lineWidth: 2))
+                Text("Eigen spel maken")
+                    .font(M.font(14, .extraBold))
+                    .foregroundStyle(M.red)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 20)
         }
     }
 

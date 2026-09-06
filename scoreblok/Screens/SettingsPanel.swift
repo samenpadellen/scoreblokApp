@@ -24,9 +24,7 @@ struct SettingsPanel: View {
     @State private var isError = false
 
     var body: some View {
-        ModalPanel(title: "Instellingen",
-                   width: isCompact ? 340 : 620,
-                   onClose: onClose) {
+        ModalPanel(title: "Instellingen", width: 620, onClose: onClose) {
             ScrollView {
                 VStack(spacing: 0) {
                     meSection
@@ -38,7 +36,7 @@ struct SettingsPanel: View {
                     creditsSection
                 }
             }
-            .frame(maxHeight: 620)
+            .frame(maxHeight: 640)
         }
         .fileImporter(isPresented: $importing,
                       allowedContentTypes: [.json],

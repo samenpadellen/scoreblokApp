@@ -129,14 +129,35 @@ enum BuiltInGames {
 
             GameTemplate(name: "30 Seconds", mono: "30", mode: .roundsCumulative,
                          roundCount: 0, winsByLowest: false, minPlayers: 4,
-                         isBuiltIn: true, subtitleNote: "teams in v2", sortIndex: next())
+                         isBuiltIn: true, subtitleNote: "teams in v2", sortIndex: next()),
+
+            // Per ronde imiteert iedereen één geluid; de hoogste score wint de
+            // kaart van die ronde. Je telt dus kaarten, geen punten, en de
+            // groep spreekt vooraf af wanneer het klaar is — vandaar open einde.
+            GameTemplate(name: "Golden GOAT", mono: "GG", mode: .roundsCumulative,
+                         roundCount: 0, winsByLowest: false,
+                         minPlayers: 2, maxPlayers: 10,
+                         unitLabel: "kaarten",
+                         isBuiltIn: true,
+                         subtitleNote: "open einde · meeste kaarten wint",
+                         sortIndex: next())
         ]
     }
 
-    /// Zet de sjablonen klaar bij een lege database.
+    /// Zet de sjablonen klaar, en vult later toegevoegde ingebouwde spellen
+    /// aan bij een blok dat er al is. Bestaande sjablonen worden met rust
+    /// gelaten: je eigen aanpassingen blijven staan.
     static func seedIfNeeded(in context: ModelContext) {
         let existing = (try? context.fetch(FetchDescriptor<GameTemplate>())) ?? []
-        guard existing.isEmpty else { return }
-        for template in all() { context.insert(template) }
+        let known = Set(existing.map(\.name))
+        let highest = existing.map(\.sortIndex).max() ?? -1
+
+        for template in all() where !known.contains(template.name) {
+            if !existing.isEmpty {
+                // Nieuwkomers achteraan, zodat de volgorde niet omgooit.
+                template.sortIndex += highest + 1
+            }
+            context.insert(template)
+        }
     }
 }
