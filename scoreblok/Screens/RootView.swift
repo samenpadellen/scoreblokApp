@@ -84,7 +84,12 @@ struct RootView: View {
             .environment(router)
             .overlay { if showingSettings { SettingsPanel { showingSettings = false } } }
             .modifier(LifecycleActions(
-                onScenePhase: { phase in if phase != .active { Storage.save(context) } },
+                onScenePhase: { phase in
+                    if phase != .active {
+                        Storage.save(context)
+                        SnapshotWriter.update(from: matches)
+                    }
+                },
                 onAppear: {
                     ArchivoFont.registerIfNeeded()
                     BuiltInGames.seedIfNeeded(in: context)
@@ -97,6 +102,7 @@ struct RootView: View {
                 pendingGameID: pending.startGameID,
                 matchCount: matches.count,
                 onMatchCountChange: {
+                    SnapshotWriter.update(from: matches)
                     if spotlightEnabled {
                         SpotlightIndex.reindex(matches: matches, players: players)
                     }

@@ -729,6 +729,7 @@ struct BoardScreen: View {
     private func save() {
         match.touch()
         try? context.save()
+        SnapshotWriter.update(from: [match])
     }
 
     /// Stoppen zonder af te ronden: het potje blijft open en staat bovenaan

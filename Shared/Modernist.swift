@@ -136,3 +136,11 @@ extension Color {
         )
     }
 }
+
+
+extension View {
+    /// Letterspatiëring zoals het ontwerp die in em opgeeft.
+    func tracking(em: CGFloat, size: CGFloat) -> some View {
+        tracking(em * size)
+    }
+}

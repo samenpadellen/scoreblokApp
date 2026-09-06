@@ -35,6 +35,7 @@ struct SettingsPanel: View {
                     storageSection
                     searchSection
                     aboutSection
+                    creditsSection
                 }
             }
             .frame(maxHeight: 620)
@@ -202,6 +203,25 @@ struct SettingsPanel: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 20)
         }
+    }
+
+    // MARK: - Credits
+
+    private var creditsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Credits")
+            Text("Ontwikkeld door Softwarestudio Wave2Lead")
+                .font(M.font(13, .semiBold))
+                .foregroundStyle(M.ink)
+            Link(destination: URL(string: "https://www.wave2lead.com")!) {
+                Text("wave2lead.com")
+                    .font(M.font(12.5, .semiBold))
+                    .foregroundStyle(M.red)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(EdgeInsets(top: 18, leading: 20, bottom: 20, trailing: 20))
+        .background(M.paperDeep)
     }
 
     private func infoRow(_ label: String, _ value: String) -> some View {

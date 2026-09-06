@@ -3,11 +3,6 @@ import SwiftUI
 // MARK: - Tekststijlen
 
 extension View {
-    /// Letterspatiëring zoals het ontwerp die in em opgeeft.
-    func tracking(em: CGFloat, size: CGFloat) -> some View {
-        tracking(em * size)
-    }
-
     /// Numeriek toetsenbord op de platforms die er een hebben; elders een
     /// gewoon veld, want het hardwaretoetsenbord doet het werk al.
     func numericKeyboard() -> some View {
