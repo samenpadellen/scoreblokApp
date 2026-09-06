@@ -453,27 +453,62 @@ struct ScreenBar<Trailing: View>: View {
     var subtitle: String?
     @ViewBuilder let trailing: () -> Trailing
 
+    @Environment(\.isCompact) private var isCompact
+
     var body: some View {
-        HStack(spacing: 16) {
-            BackLink(title: backTitle, action: onBack)
-            Rectangle().fill(M.hairline).frame(width: 1, height: 22)
-            if let title {
-                Text(title)
-                    .font(M.font(19, .extraBold))
-                    .tracking(em: -0.01, size: 19)
-                    .foregroundStyle(M.ink)
-                    .lineLimit(1)
+        if isCompact {
+            // Smal: titel op een eigen regel, acties eronder schuivend, zodat
+            // er niets wegvalt achter een afkapping.
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 12) {
+                    BackLink(title: backTitle, action: onBack)
+                    if let title {
+                        Text(title)
+                            .font(M.font(17, .extraBold))
+                            .tracking(em: -0.01, size: 17)
+                            .foregroundStyle(M.ink)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    Spacer(minLength: 0)
+                }
+                if let subtitle {
+                    Text(subtitle)
+                        .font(M.font(12, .regular))
+                        .foregroundStyle(M.inkAlpha(0.55))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, 8)
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) { trailing() }
+                        .padding(.bottom, 4)
+                }
             }
-            if let subtitle {
-                Text(subtitle)
-                    .font(M.font(12.5, .regular))
-                    .foregroundStyle(M.inkAlpha(0.55))
-                    .lineLimit(1)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        } else {
+            HStack(spacing: 16) {
+                BackLink(title: backTitle, action: onBack)
+                Rectangle().fill(M.hairline).frame(width: 1, height: 22)
+                if let title {
+                    Text(title)
+                        .font(M.font(19, .extraBold))
+                        .tracking(em: -0.01, size: 19)
+                        .foregroundStyle(M.ink)
+                        .lineLimit(1)
+                }
+                if let subtitle {
+                    Text(subtitle)
+                        .font(M.font(12.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.55))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                trailing()
             }
-            Spacer(minLength: 8)
-            trailing()
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 12)
     }
 }

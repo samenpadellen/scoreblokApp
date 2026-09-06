@@ -13,8 +13,12 @@ extension EnvironmentValues {
         set { self[ContentWidthKey.self] = newValue }
     }
 
-    /// Staand op iPad, of een smal venster in Split View.
+    /// Staand op iPad, of een smal venster in Split View: kolommen stapelen.
     var isNarrow: Bool { contentWidth < 720 }
+
+    /// iPhone of een derde van het scherm: geen zijbalk meer, en blokken
+    /// die op een iPad naast elkaar staan gaan hier altijd onder elkaar.
+    var isCompact: Bool { contentWidth < 560 }
 }
 
 /// Twee blokken naast elkaar als het past, onder elkaar als het niet past.
@@ -32,7 +36,7 @@ struct AdaptiveSplit<Leading: View, Trailing: View>: View {
     @Environment(\.contentWidth) private var contentWidth
 
     var body: some View {
-        if isNarrow {
+        if isNarrow || contentWidth < 560 {
             VStack(spacing: 0) {
                 leading()
                     .frame(maxWidth: .infinity, alignment: .leading)

@@ -8,6 +8,7 @@ struct BoardScreen: View {
     @Environment(\.modelContext) private var context
     @Environment(\.contentWidth) private var contentWidth
     @Environment(\.isNarrow) private var isNarrow
+    @Environment(\.isCompact) private var isCompact
 
     /// Geselecteerde cel: ronde-index en zitplaats.
     @State private var selectedRound = 0
@@ -25,7 +26,7 @@ struct BoardScreen: View {
     /// De rondekolom is smal bij losse nummers en breed als er een opdracht
     /// per ronde bij staat.
     private var roundColumnWidth: CGFloat {
-        if match.hasRoundLabels { return isNarrow ? 132 : 168 }
+        if match.hasRoundLabels { return isCompact ? 108 : (isNarrow ? 132 : 168) }
         return M.roundColumnWidth
     }
 
@@ -142,15 +143,20 @@ struct BoardScreen: View {
                 let standing = standings.first { $0.player.id == player.id }
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 10) {
-                        PlayerMark(player: player, size: 30)
+                        PlayerMark(player: player, size: isCompact ? 24 : 30)
                         Text(player.name)
                             .font(M.font(14, .semiBold))
                             .foregroundStyle(M.ink)
                             .lineLimit(1)
-                        if standing?.isEliminated == true {
-                            Tag(text: "Eruit", background: M.inkAlpha(0.15), foreground: M.ink, size: 9)
-                        } else if player.id == leaderID, match.rounds.contains(where: { !$0.entries.isEmpty }) {
-                            Tag(text: "Leidt", background: M.red, size: 9)
+                            .minimumScaleFactor(0.7)
+                        if playerColumnWidth >= 132 {
+                            if standing?.isEliminated == true {
+                                Tag(text: "Eruit", background: M.inkAlpha(0.15),
+                                    foreground: M.ink, size: 9)
+                            } else if player.id == leaderID,
+                                      match.rounds.contains(where: { !$0.entries.isEmpty }) {
+                                Tag(text: "Leidt", background: M.red, size: 9)
+                            }
                         }
                         Spacer(minLength: 0)
                     }
@@ -341,15 +347,26 @@ struct BoardScreen: View {
                         .tracking(em: -0.01, size: 21)
                         .foregroundStyle(M.ink)
                         .padding(.bottom, 6)
-                    Text(selectionHint)
-                        .font(M.font(12.5, .regular))
-                        .foregroundStyle(M.inkAlpha(0.6))
-                        .lineSpacing(5)
-                        .frame(maxWidth: 300, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if match.tracksJokers { jokerStepper.padding(.top, 14) }
-                    Spacer(minLength: 12)
-                    nextRoundButton
+                    if !isCompact {
+                        Text(selectionHint)
+                            .font(M.font(12.5, .regular))
+                            .foregroundStyle(M.inkAlpha(0.6))
+                            .lineSpacing(5)
+                            .frame(maxWidth: 300, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if isCompact {
+                        HStack(spacing: 14) {
+                            if match.tracksJokers { jokerStepper }
+                            Spacer(minLength: 8)
+                            nextRoundButton
+                        }
+                        .padding(.top, 10)
+                    } else {
+                        if match.tracksJokers { jokerStepper.padding(.top, 14) }
+                        Spacer(minLength: 12)
+                        nextRoundButton
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -387,7 +404,7 @@ struct BoardScreen: View {
         let count = player.map { match.jokers(round: selectedRound, player: $0) } ?? 0
 
         return HStack(spacing: 12) {
-            SectionLabel("Jokers")
+            SectionLabel("Jokers").fixedSize()
             Text("\(count)")
                 .font(M.font(20, .extraBold))
                 .foregroundStyle(count > 0 ? M.red : M.ink)
@@ -441,6 +458,8 @@ struct BoardScreen: View {
         .fixedSize()
     }
 
+    private var keyWidth: CGFloat { isCompact ? 62 : 68 }
+
     private func key(_ label: String, wide: Bool = false) -> some View {
         let isNumber = label.count == 1 && label.first!.isNumber
         let isConfirm = label == "Bevestigen"
@@ -457,7 +476,7 @@ struct BoardScreen: View {
                 .foregroundStyle(isConfirm ? M.paper
                                  : signOn ? M.paper
                                  : signDisabled ? M.inkAlpha(0.3) : M.ink)
-                .frame(width: wide ? 68 * 4 + 18 : 68, height: 48)
+                .frame(width: wide ? keyWidth * 4 + 18 : keyWidth, height: isCompact ? 44 : 48)
                 .background(isConfirm ? M.red : signOn ? M.ink : isNumber ? M.paper : M.paperKey)
                 .overlay(Rectangle().stroke(isConfirm ? M.red : M.inkAlpha(0.35), lineWidth: 1))
         }
@@ -740,6 +759,7 @@ private struct FinishOrderBoard: View {
     @Environment(\.modelContext) private var context
     @Environment(\.contentWidth) private var contentWidth
     @Environment(\.isNarrow) private var isNarrow
+    @Environment(\.isCompact) private var isCompact
 
     private var seats: [Player] { match.orderedPlayers }
 

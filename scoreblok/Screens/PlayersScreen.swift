@@ -12,6 +12,7 @@ struct PlayersScreen: View {
     @State private var newAvatar = 0
     @State private var newRamp = 0
     @Environment(\.isNarrow) private var isNarrow
+    @Environment(\.isCompact) private var isCompact
 
     private var counted: [Match] { matches.filter(\.counts) }
     private var visible: [Player] { players.filter { !$0.isArchived } }
@@ -27,7 +28,7 @@ struct PlayersScreen: View {
                     empty
                 } else {
                     Hairline()
-                    GridRows(items: visible, columns: isNarrow ? 2 : 3) { player in
+                    GridRows(items: visible, columns: isCompact ? 1 : (isNarrow ? 2 : 3)) { player in
                         card(player)
                     }
                 }

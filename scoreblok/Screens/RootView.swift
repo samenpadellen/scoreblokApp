@@ -58,6 +58,8 @@ struct RootView: View {
     @Query private var players: [Player]
     @State private var router = Router()
     @State private var pending = PendingAction.shared
+    @State private var showingStorage = false
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Het lopende potje, als er een is.
     private var openMatch: Match? {
@@ -77,34 +79,37 @@ struct RootView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            // Staand houdt de zijbalk minder ruimte bezet, zodat het bord
-            // en de kolommen op het werkvlak blijven passen.
-            let narrow = proxy.size.width < 900
-            let sidebarWidth: CGFloat = narrow ? 168 : M.sidebarWidth
-            let contentWidth = proxy.size.width - sidebarWidth - 2
+            // Drie maten: een volle zijbalk, een smallere, en onder de
+            // 620 pt helemaal geen kolom meer maar een strook bovenin.
+            let total = proxy.size.width
+            let stacked = total < 620
+            let sidebarWidth: CGFloat = total < 900 ? 168 : M.sidebarWidth
+            let contentWidth = stacked ? total : total - sidebarWidth - 2
 
-            HStack(spacing: 0) {
-                sidebar(width: sidebarWidth)
-                Rectangle().fill(M.ruleHeavy).frame(width: 2)
-                VStack(spacing: 0) {
-                    content
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    if showsNowPlaying, let openMatch {
-                        NowPlayingBar(match: openMatch) {
-                            router.screen = openMatch.mode == .scorecard
-                                ? .card(openMatch) : .board(openMatch)
-                        }
-                        .transition(.move(edge: .bottom))
+            Group {
+                if stacked {
+                    VStack(spacing: 0) {
+                        topBar
+                        Rectangle().fill(M.ruleHeavy).frame(width: nil, height: 2)
+                        workspace
+                    }
+                } else {
+                    HStack(spacing: 0) {
+                        sidebar(width: sidebarWidth)
+                        Rectangle().fill(M.ruleHeavy).frame(width: 2)
+                        workspace
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(M.paper)
-                .animation(.snappy(duration: 0.22), value: showsNowPlaying)
-                .environment(\.contentWidth, contentWidth)
             }
+            .environment(\.contentWidth, contentWidth)
         }
         .background(M.paper)
         .environment(router)
+        .overlay { if showingStorage { StoragePanel { showingStorage = false } } }
+        .onChange(of: scenePhase) { _, phase in
+            // Naar de achtergrond: eerst zeker wegschrijven.
+            if phase != .active { Storage.save(context) }
+        }
         .task {
             ArchivoFont.registerIfNeeded()
             BuiltInGames.seedIfNeeded(in: context)
@@ -137,6 +142,70 @@ struct RootView: View {
         }
     }
 
+    /// Het werkvlak met, als er een potje loopt, de balk eronder.
+    private var workspace: some View {
+        VStack(spacing: 0) {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            if showsNowPlaying, let openMatch {
+                NowPlayingBar(match: openMatch) {
+                    router.screen = openMatch.mode == .scorecard
+                        ? .card(openMatch) : .board(openMatch)
+                }
+                .transition(.move(edge: .bottom))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(M.paper)
+        .animation(.snappy(duration: 0.22), value: showsNowPlaying)
+    }
+
+    // MARK: - Strook bovenin, bij een smal venster
+
+    /// Dezelfde vorm als de periodefilters op het statistiekenscherm: één rij
+    /// segmenten met haarlijnen ertussen en het actieve vak in inkt.
+    private var topBar: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Wordmark(size: 18, markSize: 26)
+                Spacer()
+                Button {
+                    showingStorage = true
+                } label: {
+                    Text(Storage.mode.title.uppercased())
+                        .font(M.font(10, .semiBold))
+                        .tracking(em: 0.12, size: 10)
+                        .foregroundStyle(Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
+                        .frame(minHeight: M.tap)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            Hairline()
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(NavSection.allCases) { section in
+                        let isActive = router.screen.section == section
+                        Button {
+                            router.go(section)
+                        } label: {
+                            Text(section.rawValue)
+                                .font(M.font(12.5, .extraBold))
+                                .foregroundStyle(isActive ? M.paper : M.ink)
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 46)
+                                .background(isActive ? M.ink : .clear)
+                        }
+                        .buttonStyle(.plain)
+                        Rectangle().fill(M.hairline).frame(width: 1, height: 46)
+                    }
+                }
+            }
+        }
+        .background(M.paperDeep)
+    }
+
     // MARK: - Zijbalk
 
     private func sidebar(width: CGFloat) -> some View {
@@ -156,16 +225,24 @@ struct RootView: View {
             Spacer(minLength: 0)
 
             Rectangle().fill(M.ruleHeavy).frame(height: 2)
-            VStack(alignment: .leading, spacing: 6) {
-                SectionLabel(Storage.mode.title)
-                Text(Storage.mode.detail)
-                    .font(M.font(12.5, .regular))
-                    .foregroundStyle(M.inkAlpha(0.7))
-                    .fixedSize(horizontal: false, vertical: true)
+            Button {
+                showingStorage = true
+            } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    SectionLabel(Storage.mode.title,
+                                 tint: Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
+                    Text(Storage.mode.detail)
+                        .font(M.font(12.5, .regular))
+                        .foregroundStyle(Storage.mode.isFailed ? M.red : M.inkAlpha(0.7))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, compact ? 16 : 20)
+                .padding(.vertical, 16)
+                .contentShape(.rect)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, compact ? 16 : 20)
-            .padding(.vertical, 16)
+            .buttonStyle(.plain)
         }
         .frame(width: width)
         .background(M.paperDeep)
