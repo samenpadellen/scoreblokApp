@@ -4,17 +4,13 @@
 <dict>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
-		<string>iCloud.$(CFBundleIdentifier)</string>
+		<string>iCloud.nl.scoreblok.app</string>
 	</array>
 	<key>com.apple.developer.icloud-services</key>
 	<array>
 		<string>CloudKit</string>
 	</array>
-	<key>com.apple.developer.ubiquity-kvstore-identifier</key>
-	<string>$(TeamIdentifierPrefix)$(CFBundleIdentifier)</string>
 	<key>aps-environment</key>
 	<string>development</string>
-	<key>com.apple.security.network.client</key>
-	<true/>
 </dict>
 </plist>
