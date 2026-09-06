@@ -74,23 +74,32 @@ struct RootView: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            sidebar
-            Rectangle().fill(M.ruleHeavy).frame(width: 2)
-            VStack(spacing: 0) {
-                content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                if showsNowPlaying, let openMatch {
-                    NowPlayingBar(match: openMatch) {
-                        router.screen = openMatch.mode == .scorecard
-                            ? .card(openMatch) : .board(openMatch)
+        GeometryReader { proxy in
+            // Staand houdt de zijbalk minder ruimte bezet, zodat het bord
+            // en de kolommen op het werkvlak blijven passen.
+            let narrow = proxy.size.width < 900
+            let sidebarWidth: CGFloat = narrow ? 168 : M.sidebarWidth
+            let contentWidth = proxy.size.width - sidebarWidth - 2
+
+            HStack(spacing: 0) {
+                sidebar(width: sidebarWidth)
+                Rectangle().fill(M.ruleHeavy).frame(width: 2)
+                VStack(spacing: 0) {
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if showsNowPlaying, let openMatch {
+                        NowPlayingBar(match: openMatch) {
+                            router.screen = openMatch.mode == .scorecard
+                                ? .card(openMatch) : .board(openMatch)
+                        }
+                        .transition(.move(edge: .bottom))
                     }
-                    .transition(.move(edge: .bottom))
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(M.paper)
+                .animation(.snappy(duration: 0.22), value: showsNowPlaying)
+                .environment(\.contentWidth, contentWidth)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(M.paper)
-            .animation(.snappy(duration: 0.22), value: showsNowPlaying)
         }
         .background(M.paper)
         .environment(router)
@@ -110,15 +119,17 @@ struct RootView: View {
 
     // MARK: - Zijbalk
 
-    private var sidebar: some View {
-        VStack(spacing: 0) {
-            Wordmark(size: 22, markSize: 34)
+    private func sidebar(width: CGFloat) -> some View {
+        let compact = width < M.sidebarWidth
+        return VStack(spacing: 0) {
+            Wordmark(size: compact ? 19 : 22, markSize: compact ? 28 : 34)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 20, leading: 20, bottom: 16, trailing: 20))
+                .padding(EdgeInsets(top: 20, leading: compact ? 16 : 20,
+                                    bottom: 16, trailing: 12))
             Hairline()
 
             ForEach(NavSection.allCases) { section in
-                navRow(section)
+                navRow(section, compact: compact)
                 Hairline()
             }
 
@@ -133,29 +144,31 @@ struct RootView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
+            .padding(.horizontal, compact ? 16 : 20)
             .padding(.vertical, 16)
         }
-        .frame(width: M.sidebarWidth)
+        .frame(width: width)
         .background(M.paperDeep)
     }
 
-    private func navRow(_ section: NavSection) -> some View {
+    private func navRow(_ section: NavSection, compact: Bool = false) -> some View {
         let isActive = router.screen.section == section
         return Button {
             router.go(section)
         } label: {
             HStack(spacing: 0) {
                 Text(section.rawValue)
-                    .font(M.font(14.5, isActive ? .extraBold : .semiBold))
-                    .tracking(em: 0.02, size: 14.5)
+                    .font(M.font(compact ? 13.5 : 14.5, isActive ? .extraBold : .semiBold))
+                    .tracking(em: 0.02, size: compact ? 13.5 : 14.5)
                     .foregroundStyle(isActive ? M.paper : M.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 Spacer(minLength: 8)
                 Text(isActive ? "●" : "")
                     .font(M.font(13, .regular))
                     .foregroundStyle(M.paper.opacity(0.5))
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, compact ? 16 : 20)
             .frame(minHeight: 48)
             .frame(maxWidth: .infinity)
             .background(isActive ? M.ink : .clear)

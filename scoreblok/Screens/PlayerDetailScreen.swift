@@ -15,6 +15,7 @@ struct PlayerDetailScreen: View {
     @State private var editingLook = false
     @State private var draftAvatar = 0
     @State private var draftRamp = 0
+    @Environment(\.isNarrow) private var isNarrow
 
     /// Tegen wie de balans loopt: normaal tegen jou, en als dit jouw eigen
     /// profiel is tegen je vaakste medespeler.
@@ -123,18 +124,21 @@ struct PlayerDetailScreen: View {
                           "\(jokers.perMatch.dutch(1)) per potje"))
         }
 
-        return HStack(spacing: 0) {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 0),
+                            count: isNarrow ? 2 : items.count)
+        return LazyVGrid(columns: columns, spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 FigureTile(label: item.0, value: item.1, sub: item.2, valueSize: 32, minHeight: 118)
                     .overlay(alignment: .trailing) {
                         Rectangle().fill(M.hairline).frame(width: 1)
                     }
+                    .overlay(alignment: .bottom) { if isNarrow { Hairline() } }
             }
         }
     }
 
     private var lower: some View {
-        HStack(alignment: .top, spacing: 0) {
+        AdaptiveSplit {
             VStack(spacing: 0) {
                 SectionLabel(balanceTitle)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -168,8 +172,7 @@ struct PlayerDetailScreen: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
-
+        } trailing: {
             VStack(spacing: 0) {
                 SectionLabel("Laatste potjes")
                     .frame(maxWidth: .infinity, alignment: .leading)

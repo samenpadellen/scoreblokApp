@@ -11,6 +11,7 @@ struct ScorecardScreen: View {
     @State private var editingColumn: ScoreColumn?
     @State private var editingText = ""
     @State private var confirmFinish = false
+    @Environment(\.isNarrow) private var isNarrow
 
     private var spec: ScorecardSpec { match.scorecard ?? .empty }
     private var seats: [Player] { match.orderedPlayers }
@@ -94,7 +95,8 @@ struct ScorecardScreen: View {
                 .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
             Hairline()
 
-            let perRow = spec.columns.count > 8 ? min(spec.columns.count, 15) : max(spec.columns.count, 1)
+            let wide = spec.columns.count > 8 ? min(spec.columns.count, 15) : max(spec.columns.count, 1)
+            let perRow = isNarrow ? min(wide, 8) : wide
             let rows = stride(from: 0, to: spec.columns.count, by: perRow).map { start in
                 Array(spec.columns[start..<min(start + perRow, spec.columns.count)])
             }
@@ -160,7 +162,7 @@ struct ScorecardScreen: View {
     // MARK: - Bonussen, aftrek en eindscore
 
     private var lowerBlocks: some View {
-        HStack(alignment: .top, spacing: 0) {
+        AdaptiveSplit {
             VStack(spacing: 0) {
                 if !spec.bonuses.isEmpty {
                     SectionLabel(spec.bonusesTitle)
@@ -178,8 +180,7 @@ struct ScorecardScreen: View {
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
-
+        } trailing: {
             VStack(spacing: 0) {
                 if spec.hasPenalty {
                     SectionLabel(spec.penaltyTitle ?? "")

@@ -111,6 +111,12 @@ enum ArchivoFont {
         }
     }
 
+    /// De geregistreerde PostScript-naam, voor tekenwerk via CoreText.
+    static func postScriptName(_ weight: ArchivoWeight) -> String? {
+        registerIfNeeded()
+        return registeredNames[weight]
+    }
+
     static func font(size: CGFloat, weight: ArchivoWeight) -> Font {
         registerIfNeeded()
         if let name = registeredNames[weight] {

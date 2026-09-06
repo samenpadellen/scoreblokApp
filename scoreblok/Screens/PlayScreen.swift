@@ -6,6 +6,7 @@ struct PlayScreen: View {
     @Query(sort: \GameTemplate.sortIndex) private var templates: [GameTemplate]
     @Query(sort: \Match.startedAt, order: .reverse) private var matches: [Match]
     @Query private var players: [Player]
+    @Environment(\.isNarrow) private var isNarrow
 
     private var activePlayers: [Player] { players.filter { !$0.isArchived } }
     /// Alle potjes die nog lopen, laatst gespeeld bovenaan. Ze blijven staan
@@ -51,7 +52,7 @@ struct PlayScreen: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(EdgeInsets(top: 22, leading: 28, bottom: 8, trailing: 28))
                 Hairline()
-                GridRows(items: recent, columns: 4) { template in
+                GridRows(items: recent, columns: isNarrow ? 2 : 4) { template in
                     recentCard(template)
                 }
 
@@ -59,7 +60,7 @@ struct PlayScreen: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(EdgeInsets(top: 22, leading: 28, bottom: 8, trailing: 28))
                 Hairline()
-                GridRows(items: others, columns: 3, trailing: { newGameRow }) { template in
+                GridRows(items: others, columns: isNarrow ? 2 : 3, trailing: { newGameRow }) { template in
                     compactRow(template)
                 }
 
@@ -90,7 +91,8 @@ struct PlayScreen: View {
         Button {
             router.screen = match.mode == .scorecard ? .card(match) : .board(match)
         } label: {
-            HStack(spacing: 0) {
+            AnyLayout(isNarrow ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+                      : AnyLayout(HStackLayout(spacing: 0))) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("POTJE OPEN — GA VERDER")
                         .font(M.font(10, .semiBold))
@@ -113,7 +115,7 @@ struct PlayScreen: View {
                 Spacer(minLength: 12)
 
                 HStack(spacing: 0) {
-                    ForEach(match.standings) { standing in
+                    ForEach(match.standings.prefix(isNarrow ? 4 : 8)) { standing in
                         VStack(alignment: .leading, spacing: 0) {
                             Spacer(minLength: 0)
                             Text(standing.player.name.uppercased())
@@ -136,6 +138,8 @@ struct PlayScreen: View {
                 }
                 .fixedSize(horizontal: true, vertical: false)
                 .layoutPriority(1)
+                .padding(.leading, isNarrow ? 28 : 0)
+                .padding(.bottom, isNarrow ? 8 : 0)
             }
             .background(M.ink)
             .contentShape(.rect)

@@ -8,6 +8,7 @@ struct StatsScreen: View {
 
     @State private var period: StatsPeriod = .days90
     @State private var gameFilter: String? = nil
+    @Environment(\.isNarrow) private var isNarrow
 
     private var me: Player? { players.first(where: \.isMe) ?? players.first }
 
@@ -136,7 +137,9 @@ struct StatsScreen: View {
              previous.isEmpty ? "geen vergelijking" : (evenings - prevEvenings).trendText)
         ]
 
-        return HStack(spacing: 0) {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 0),
+                            count: isNarrow ? 2 : items.count)
+        return LazyVGrid(columns: columns, spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 VStack(alignment: .leading, spacing: 0) {
                     Text(item.0.uppercased())
@@ -164,6 +167,7 @@ struct StatsScreen: View {
                 .padding(EdgeInsets(top: 16, leading: 18, bottom: 18, trailing: 18))
                 .frame(minHeight: 126, alignment: .topLeading)
                 .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
+                .overlay(alignment: .bottom) { if isNarrow { Hairline() } }
             }
         }
     }
@@ -171,7 +175,7 @@ struct StatsScreen: View {
     // MARK: - Vorm en ranglijst
 
     private var formAndRanking: some View {
-        HStack(alignment: .top, spacing: 0) {
+        AdaptiveSplit(trailingWidth: 380) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Vorm")
@@ -207,10 +211,8 @@ struct StatsScreen: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(EdgeInsets(top: 18, leading: 24, bottom: 20, trailing: 24))
-            .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
-
+        } trailing: {
             rankingBlock
-                .frame(width: 380)
         }
     }
 
@@ -272,11 +274,9 @@ struct StatsScreen: View {
     // MARK: - Kop-tot-kop en records
 
     private var headToHeadAndRecords: some View {
-        HStack(alignment: .top, spacing: 0) {
+        AdaptiveSplit {
             headToHeadBlock
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
-
+        } trailing: {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Records")
                     .font(M.font(18, .extraBold))
@@ -433,7 +433,7 @@ struct StatsScreen: View {
     // MARK: - Kalender en spelmix
 
     private var calendarAndMix: some View {
-        HStack(alignment: .top, spacing: 0) {
+        AdaptiveSplit(trailingWidth: 420) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Speelkalender")
@@ -461,8 +461,7 @@ struct StatsScreen: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(EdgeInsets(top: 18, leading: 24, bottom: 24, trailing: 24))
-            .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
-
+        } trailing: {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Wat spelen we het meest")
                     .font(M.font(18, .extraBold))
@@ -490,7 +489,7 @@ struct StatsScreen: View {
                     Hairline()
                 }
             }
-            .frame(width: 420, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(EdgeInsets(top: 18, leading: 24, bottom: 24, trailing: 24))
         }
     }

@@ -68,7 +68,8 @@ enum BuiltInGames {
     }
 
     /// De opdrachten van Jokeren, in speelvolgorde. Elke ronde vraagt een
-    /// andere combinatie; wie niet uitkomt houdt de punten van zijn kaarten.
+    /// andere combinatie; wie niet uitkomt houdt zijn kaarten. Aan het eind
+    /// wint wie de minste kaarten overhield.
     static let jokerenRounds = [
         "Drie op een rij",
         "Drie dezelfde",
@@ -88,6 +89,10 @@ enum BuiltInGames {
                          roundCount: jokerenRounds.count, winsByLowest: true,
                          roundLabels: jokerenRounds,
                          supportsJokers: true,
+                         // Je telt de kaarten die je overhoudt; alleen het
+                         // totaal telt, een gemiddelde zegt hier niets.
+                         unitLabel: "kaarten",
+                         showsAverages: false,
                          isBuiltIn: true, sortIndex: next()),
 
             GameTemplate(name: "Keer op Keer", mono: "KK", mode: .scorecard,

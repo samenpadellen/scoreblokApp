@@ -19,6 +19,7 @@ struct SetupScreen: View {
     @State private var newName = ""
     @State private var newAvatar = 0
     @State private var newRamp = 0
+    @Environment(\.isNarrow) private var isNarrow
 
     private var roster: [Player] { allPlayers.filter { !$0.isArchived } }
     private var seated: [Player] { chosen.compactMap { id in roster.first { $0.id == id } } }
@@ -31,12 +32,23 @@ struct SetupScreen: View {
             toolbar
             HeavyRule()
 
-            GeometryReader { proxy in
-                HStack(spacing: 0) {
-                    ScrollView { participants }
-                        .frame(width: proxy.size.width * 0.6)
-                    Rectangle().fill(M.ruleHeavy).frame(width: 2)
-                    ScrollView { rules }
+            if isNarrow {
+                // Staand past het niet naast elkaar: regels boven, spelers eronder.
+                ScrollView {
+                    VStack(spacing: 0) {
+                        rules
+                        HeavyRule()
+                        participants
+                    }
+                }
+            } else {
+                GeometryReader { proxy in
+                    HStack(spacing: 0) {
+                        ScrollView { participants }
+                            .frame(width: proxy.size.width * 0.6)
+                        Rectangle().fill(M.ruleHeavy).frame(width: 2)
+                        ScrollView { rules }
+                    }
                 }
             }
         }
@@ -71,7 +83,7 @@ struct SetupScreen: View {
                 .padding(EdgeInsets(top: 18, leading: 24, bottom: 12, trailing: 24))
             Hairline()
 
-            GridRows(items: roster, columns: 2, trailing: { addPlayerRow }) { player in
+            GridRows(items: roster, columns: isNarrow ? 1 : 2, trailing: { addPlayerRow }) { player in
                 playerRow(player)
             }
 

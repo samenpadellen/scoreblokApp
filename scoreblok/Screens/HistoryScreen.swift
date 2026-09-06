@@ -11,6 +11,7 @@ struct HistoryScreen: View {
     @State private var gameFilter: String?
     @State private var playerFilter: UUID?
     @State private var yearFilter: Int?
+    @Environment(\.isNarrow) private var isNarrow
 
     private var finished: [Match] { matches.filter { $0.isFinished } }
 
@@ -144,10 +145,10 @@ struct HistoryScreen: View {
                                 .foregroundStyle(M.inkAlpha(0.5))
                                 .lineLimit(1)
                         }
-                        .frame(width: 170, alignment: .leading)
+                        .frame(width: isNarrow ? 130 : 170, alignment: .leading)
 
                         HStack(spacing: 8) {
-                            ForEach(match.standings.prefix(5)) { standing in
+                            ForEach(match.standings.prefix(isNarrow ? 3 : 5)) { standing in
                                 HStack(spacing: 7) {
                                     PlayerMark(player: standing.player, size: 16)
                                     Text("\(standing.total)")

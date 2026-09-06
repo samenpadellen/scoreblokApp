@@ -60,6 +60,11 @@ final class GameTemplate {
     var roundLabels: [String] = []
     /// Of dit spel de jokerteller kan aanbieden bij het opzetten.
     var supportsJokers: Bool = false
+    /// Wat je per ronde invult. Bij Jokeren zijn dat kaarten, geen punten.
+    var unitLabel: String = "punten"
+    /// Een gemiddelde per ronde zegt niet bij elk spel iets; bij Jokeren telt
+    /// alleen het totaal aantal kaarten dat je overhoudt.
+    var showsAverages: Bool = true
     var isBuiltIn: Bool = false
     /// Letterlijke ondertitel uit het sjabloon; leeg laat de app hem afleiden.
     var subtitleNote: String = ""
@@ -78,6 +83,8 @@ final class GameTemplate {
          scorecard: ScorecardSpec? = nil,
          roundLabels: [String] = [],
          supportsJokers: Bool = false,
+         unitLabel: String = "punten",
+         showsAverages: Bool = true,
          isBuiltIn: Bool = false,
          subtitleNote: String = "",
          sortIndex: Int = 0) {
@@ -94,6 +101,8 @@ final class GameTemplate {
         self.scorecardData = scorecard?.encoded()
         self.roundLabels = roundLabels
         self.supportsJokers = supportsJokers
+        self.unitLabel = unitLabel
+        self.showsAverages = showsAverages
         self.isBuiltIn = isBuiltIn
         self.subtitleNote = subtitleNote
         self.sortIndex = sortIndex
@@ -147,6 +156,8 @@ final class Match {
     /// Aangezet bij het opzetten: naast de punten houd je per ronde bij
     /// hoeveel jokers iemand had.
     var tracksJokers: Bool = false
+    var unitLabel: String = "punten"
+    var showsAverages: Bool = true
 
     var startedAt: Date = Date.now
     /// Wanneer er voor het laatst iets is ingevuld. Bepaalt de volgorde van
@@ -177,6 +188,8 @@ final class Match {
         self.eliminationLimit = template.eliminationLimit
         self.scorecardData = template.scorecardData
         self.roundLabels = template.roundLabels
+        self.unitLabel = template.unitLabel
+        self.showsAverages = template.showsAverages
         self.startedAt = .now
         self.lastPlayedAt = .now
     }

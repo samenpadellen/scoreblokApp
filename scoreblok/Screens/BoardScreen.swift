@@ -6,6 +6,8 @@ struct BoardScreen: View {
 
     @Environment(Router.self) private var router
     @Environment(\.modelContext) private var context
+    @Environment(\.contentWidth) private var contentWidth
+    @Environment(\.isNarrow) private var isNarrow
 
     /// Geselecteerde cel: ronde-index en zitplaats.
     @State private var selectedRound = 0
@@ -14,6 +16,7 @@ struct BoardScreen: View {
     @State private var negative = false
     @State private var undoStack: [[Int: [UUID: Int]]] = []
     @State private var confirmFinish = false
+    @State private var confirmNextRound = false
 
     private var seats: [Player] { match.orderedPlayers }
     private var standings: [Standing] { match.standings }
@@ -22,7 +25,22 @@ struct BoardScreen: View {
     /// De rondekolom is smal bij losse nummers en breed als er een opdracht
     /// per ronde bij staat.
     private var roundColumnWidth: CGFloat {
-        match.hasRoundLabels ? 168 : M.roundColumnWidth
+        if match.hasRoundLabels { return isNarrow ? 132 : 168 }
+        return M.roundColumnWidth
+    }
+
+    /// Onder deze breedte wordt een kolom onleesbaar; dan schuift de tabel
+    /// liever horizontaal dan dat de cijfers samenknijpen.
+    private var minPlayerColumn: CGFloat { 92 }
+
+    private var playerColumnWidth: CGFloat {
+        guard !seats.isEmpty else { return minPlayerColumn }
+        let free = contentWidth - roundColumnWidth
+        return max(minPlayerColumn, free / CGFloat(seats.count))
+    }
+
+    private var tableWidth: CGFloat {
+        roundColumnWidth + playerColumnWidth * CGFloat(seats.count)
     }
 
     var body: some View {
@@ -33,13 +51,16 @@ struct BoardScreen: View {
             if match.mode == .winnerOnly {
                 FinishOrderBoard(match: match)
             } else {
-                ScrollView { table }
-                    .frame(maxHeight: .infinity)
+                ScrollView([.vertical, .horizontal]) {
+                    table.frame(width: tableWidth, alignment: .leading)
+                }
+                .frame(maxHeight: .infinity)
                 keypadBar
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
         .overlay { if confirmFinish { finishPanel } }
+        .overlay { if confirmNextRound { nextRoundPanel } }
         .onAppear {
             selectedRound = match.currentRoundIndex
             selectedSeat = firstEmptySeat(in: selectedRound)
@@ -75,7 +96,7 @@ struct BoardScreen: View {
         if match.mode == .elimination {
             parts.append("eruit bij \(match.eliminationLimit)")
         } else {
-            parts.append("\(match.winsByLowest ? "laagste" : "hoogste") wint")
+            parts.append("\(match.winsByLowest ? "minste" : "meeste") \(match.unitLabel) wint")
         }
         return parts.joined(separator: " · ")
     }
@@ -90,8 +111,10 @@ struct BoardScreen: View {
                 scoreRow(index)
                 Hairline()
             }
-            averagesRow
-            Hairline()
+            if match.showsAverages {
+                averagesRow
+                Hairline()
+            }
             jokersRow
         }
     }
@@ -137,7 +160,7 @@ struct BoardScreen: View {
                             .foregroundStyle(M.inkAlpha(0.5))
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(width: playerColumnWidth, alignment: .leading)
                 .padding(EdgeInsets(top: 10, leading: 14, bottom: 8, trailing: 14))
                 .background(player.id == leaderID ? M.paperDeep : .clear)
                 .overlay(alignment: .trailing) { columnRule }
@@ -248,7 +271,7 @@ struct BoardScreen: View {
                 Text(standing.map { $0.roundsPlayed > 0 ? $0.average.dutch(1) : "—" } ?? "—")
                     .font(M.font(12.5, .regular))
                     .foregroundStyle(M.inkAlpha(0.55))
-                    .frame(maxWidth: .infinity)
+                    .frame(width: playerColumnWidth)
                     .frame(minHeight: 44)
                     .overlay(alignment: .trailing) { columnRule }
             }
@@ -275,7 +298,7 @@ struct BoardScreen: View {
                     Text("\(total)")
                         .font(M.font(13, .extraBold))
                         .foregroundStyle(total > 0 ? M.red : M.inkAlpha(0.35))
-                        .frame(maxWidth: .infinity)
+                        .frame(width: playerColumnWidth)
                         .frame(minHeight: 44)
                         .overlay(alignment: .trailing) { columnRule }
                 }
@@ -294,7 +317,8 @@ struct BoardScreen: View {
     private var keypadBar: some View {
         VStack(spacing: 0) {
             HeavyRule()
-            HStack(alignment: .top, spacing: 26) {
+            AnyLayout(isNarrow ? AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
+                      : AnyLayout(HStackLayout(alignment: .top, spacing: 26))) {
                 VStack(alignment: .leading, spacing: 0) {
                     SectionLabel("Invoer")
                         .padding(.bottom, 9)
@@ -337,9 +361,10 @@ struct BoardScreen: View {
         if match.isRoundFilled(selectedRound), selectedRound == match.currentRoundIndex {
             return "Ronde compleet. Rond de ronde af, of tik een cel om te corrigeren."
         }
+        let unit = match.unitLabel
         return match.allowNegative
-            ? "Tik het aantal punten. ± maakt de invoer negatief. Bevestigen gaat naar de volgende speler."
-            : "Tik het aantal punten. Bevestigen gaat naar de volgende speler in deze ronde."
+            ? "Tik het aantal \(unit) dat overblijft. ± maakt de invoer negatief. Bevestigen gaat naar de volgende speler."
+            : "Tik het aantal \(unit) dat overblijft. Bevestigen gaat naar de volgende speler in deze ronde."
     }
 
     /// De twist: naast de punten telt hoeveel jokers deze speler deze ronde had.
@@ -426,6 +451,61 @@ struct BoardScreen: View {
         .disabled(signDisabled)
     }
 
+    // MARK: - Ronde rond
+
+    /// Nakijken voor je doorgaat: de ingevulde ronde op een rij, en pas dan
+    /// de stap naar de volgende.
+    private var nextRoundPanel: some View {
+        let isLast = match.roundCount > 0 && selectedRound >= match.roundCount - 1
+        let label = match.roundLabel(at: selectedRound)
+
+        return ModalPanel(title: label.map { "\(selectedRound + 1). \($0)" }
+                          ?? "Ronde \(selectedRound + 1) compleet",
+                          width: 460,
+                          onClose: { confirmNextRound = false }) {
+            VStack(alignment: .leading, spacing: 0) {
+                SectionLabel("Ingevuld deze ronde")
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+                    .padding(.bottom, 10)
+
+                ForEach(seats) { player in
+                    HStack(spacing: 12) {
+                        PlayerMark(player: player, size: 26)
+                        Text(player.name)
+                            .font(M.font(14.5, .semiBold))
+                            .foregroundStyle(M.ink)
+                        Spacer(minLength: 8)
+                        if match.tracksJokers {
+                            let jokers = match.jokers(round: selectedRound, player: player)
+                            if jokers > 0 {
+                                Tag(text: "J\(jokers)", background: M.red, size: 9)
+                            }
+                        }
+                        Text("\(match.value(round: selectedRound, player: player) ?? 0)")
+                            .font(M.font(19, .extraBold))
+                            .foregroundStyle(M.ink)
+                            .frame(width: 52, alignment: .trailing)
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(minHeight: 46)
+                    Hairline()
+                }
+
+                HStack(spacing: 10) {
+                    OutlineButton(title: "Nog even nakijken") { confirmNextRound = false }
+                    Spacer()
+                    SolidButton(title: isLast ? "Potje afronden"
+                                : "Naar ronde \(selectedRound + 2)") {
+                        confirmNextRound = false
+                        advanceRound()
+                    }
+                }
+                .padding(20)
+            }
+        }
+    }
+
     // MARK: - Afronden
 
     private var finishPanel: some View {
@@ -492,7 +572,14 @@ struct BoardScreen: View {
         save()
         entry = ""
         negative = false
+
+        // Was dit de laatste speler en is de ronde daarmee rond, dan gaan we
+        // door — maar niet zonder dat je de ronde hebt kunnen nakijken.
+        let wasLastSeat = selectedSeat == seats.count - 1
         advanceSeat()
+        if wasLastSeat && match.isRoundFilled(selectedRound) {
+            confirmNextRound = true
+        }
     }
 
     private func advanceSeat() {
@@ -596,6 +683,8 @@ private struct FinishOrderBoard: View {
     @Bindable var match: Match
     @Environment(Router.self) private var router
     @Environment(\.modelContext) private var context
+    @Environment(\.contentWidth) private var contentWidth
+    @Environment(\.isNarrow) private var isNarrow
 
     private var seats: [Player] { match.orderedPlayers }
 
