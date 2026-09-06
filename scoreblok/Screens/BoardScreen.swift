@@ -44,6 +44,17 @@ struct BoardScreen: View {
         roundColumnWidth + playerColumnWidth * CGFloat(seats.count)
     }
 
+    /// Een kort potje laat op een groot scherm veel ruimte over. De rijen
+    /// mogen die opnemen tot 68 pt, zodat de cijfers van een afstand leesbaar
+    /// blijven en de cellen ruimer aan te tikken zijn.
+    private func rowHeight(in available: CGFloat) -> CGFloat {
+        let header: CGFloat = 76
+        let extras: CGFloat = (match.showsAverages ? 44 : 0) + (match.tracksJokers ? 44 : 0)
+        let free = available - header - extras
+        guard rowCount > 0, free > 0 else { return 46 }
+        return min(68, max(46, free / CGFloat(rowCount)))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             toolbar
@@ -52,10 +63,21 @@ struct BoardScreen: View {
             if match.mode == .winnerOnly {
                 FinishOrderBoard(match: match)
             } else {
-                ScrollView([.vertical, .horizontal]) {
-                    table.frame(width: tableWidth, alignment: .leading)
+                // Een tweeassige ScrollView centreert inhoud die kleiner is dan
+                // het venster; dit houdt de tabel linksboven verankerd.
+                GeometryReader { proxy in
+                    ScrollView([.vertical, .horizontal]) {
+                        table(rowHeight: rowHeight(in: proxy.size.height))
+                            .frame(width: tableWidth, alignment: .leading)
+                            // Eerst de eigen hoogte laten nemen, anders rekt de
+                            // minHeight hieronder de rijen op en lopen de
+                            // celvlakken niet meer gelijk met hun rij.
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(minWidth: proxy.size.width,
+                                   minHeight: proxy.size.height,
+                                   alignment: .topLeading)
+                    }
                 }
-                .frame(maxHeight: .infinity)
                 keypadBar
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -110,12 +132,12 @@ struct BoardScreen: View {
 
     // MARK: - Tabel
 
-    private var table: some View {
+    private func table(rowHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
             headerRow
             HeavyRule()
             ForEach(0..<rowCount, id: \.self) { index in
-                scoreRow(index)
+                scoreRow(index, height: rowHeight)
                 Hairline()
             }
             if match.showsAverages {
@@ -178,18 +200,22 @@ struct BoardScreen: View {
                 .overlay(alignment: .trailing) { columnRule }
             }
         }
+        // De "RONDE"-cel lijnt onderaan uit met maxHeight: .infinity. Zonder
+        // deze regel maakt dat de hele kopregel gulzig en duwt hij de tabel
+        // naar beneden zodra er hoogte over is.
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private func scoreRow(_ index: Int) -> some View {
+    private func scoreRow(_ index: Int, height: CGFloat) -> some View {
         let isCurrent = index == match.currentRoundIndex
         return HStack(spacing: 0) {
             roundLabelCell(index, isCurrent: isCurrent)
                 .frame(width: roundColumnWidth)
-                .frame(minHeight: 46)
+                .frame(minHeight: height)
                 .overlay(alignment: .trailing) { columnRule }
 
             ForEach(Array(seats.enumerated()), id: \.element.id) { seat, player in
-                cell(round: index, seat: seat, player: player)
+                cell(round: index, seat: seat, player: player, height: height)
             }
         }
         .background(isCurrent ? M.redTint : .clear)
@@ -221,7 +247,8 @@ struct BoardScreen: View {
         }
     }
 
-    private func cell(round index: Int, seat: Int, player: Player) -> some View {
+    private func cell(round index: Int, seat: Int, player: Player,
+                      height: CGFloat) -> some View {
         let value = match.value(round: index, player: player)
         let isSelected = selectedRound == index && selectedSeat == seat
         let isLeaderColumn = player.id == leaderID
@@ -233,8 +260,8 @@ struct BoardScreen: View {
                 .font(isSelected ? M.font(20, .extraBold)
                       : (value == nil ? M.font(16, .regular) : M.font(19, .semiBold)))
                 .foregroundStyle(value == nil && !isSelected ? M.inkAlpha(0.28) : M.ink)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 46)
+                .frame(width: playerColumnWidth)
+                .frame(minHeight: height)
                 .overlay(alignment: .topTrailing) {
                     let jokers = match.jokers(round: index, player: player)
                     if match.tracksJokers, jokers > 0 {

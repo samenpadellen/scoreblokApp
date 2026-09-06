@@ -454,18 +454,22 @@ struct ScreenBar<Trailing: View>: View {
     @ViewBuilder let trailing: () -> Trailing
 
     @Environment(\.isCompact) private var isCompact
+    @Environment(\.contentWidth) private var contentWidth
+
+    /// Onder deze breedte passen titel, regel en knoppen niet meer op één
+    /// regel zonder dat er iets afkapt. Dan liever twee regels dan een
+    /// afgekapte zin.
+    private var stacked: Bool { contentWidth < 900 }
 
     var body: some View {
-        if isCompact {
-            // Smal: titel op een eigen regel, acties eronder schuivend, zodat
-            // er niets wegvalt achter een afkapping.
+        if stacked {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
                     BackLink(title: backTitle, action: onBack)
                     if let title {
                         Text(title)
-                            .font(M.font(17, .extraBold))
-                            .tracking(em: -0.01, size: 17)
+                            .font(M.font(isCompact ? 17 : 19, .extraBold))
+                            .tracking(em: -0.01, size: isCompact ? 17 : 19)
                             .foregroundStyle(M.ink)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
@@ -474,9 +478,8 @@ struct ScreenBar<Trailing: View>: View {
                 }
                 if let subtitle {
                     Text(subtitle)
-                        .font(M.font(12, .regular))
+                        .font(M.font(12.5, .regular))
                         .foregroundStyle(M.inkAlpha(0.55))
-                        .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.bottom, 8)
                 }
@@ -485,8 +488,8 @@ struct ScreenBar<Trailing: View>: View {
                         .padding(.bottom, 4)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, isCompact ? 16 : 24)
+            .padding(.vertical, isCompact ? 10 : 12)
         } else {
             HStack(spacing: 16) {
                 BackLink(title: backTitle, action: onBack)
@@ -497,6 +500,7 @@ struct ScreenBar<Trailing: View>: View {
                         .tracking(em: -0.01, size: 19)
                         .foregroundStyle(M.ink)
                         .lineLimit(1)
+                        .layoutPriority(1)
                 }
                 if let subtitle {
                     Text(subtitle)
