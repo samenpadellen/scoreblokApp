@@ -12,6 +12,10 @@ enum SettingsKey {
     static let showAbandoned = "instelling.toonAfgebroken"
     /// Potjes en spelers doorgeven aan de zoekfunctie van het systeem.
     static let spotlight = "instelling.spotlight"
+    /// Is de rondleiding een keer afgerond of overgeslagen?
+    static let onboarded = "instelling.rondleidingGezien"
+    /// Staat er een verzoek open om de tips weer te tonen?
+    static let tipsReset = "instelling.tipsHerstellen"
 }
 
 extension StatsPeriod {

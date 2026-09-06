@@ -64,6 +64,12 @@ struct RootView: View {
     @State private var showingSettings = false
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.spotlight) private var spotlightEnabled = true
+    @AppStorage(SettingsKey.onboarded) private var onboarded = false
+    @State private var showingTour = false
+
+    /// De rondleiding staat bij de eerste start over alles heen, en is later
+    /// terug te halen uit de instellingen.
+    private var showsTour: Bool { !onboarded || showingTour }
 
     /// Het lopende potje, als er een is.
     private var openMatch: Match? {
@@ -86,6 +92,26 @@ struct RootView: View {
             .background(M.paper)
             .environment(router)
             .overlay { if showingSettings { SettingsPanel { showingSettings = false } } }
+            .overlay {
+                if showsTour {
+                    OnboardingView { exit in
+                        onboarded = true
+                        showingTour = false
+                        AppTips.ready = true
+                        switch exit {
+                        case .players: router.screen = .players
+                        case .games: router.screen = .play
+                        case .none: break
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .onChange(of: showsTour) { _, showing in
+                if showing { AppTips.ready = false }
+            }
+            .animation(.snappy(duration: 0.25), value: showsTour)
+            .environment(\.openTour) { showingTour = true }
             .modifier(LifecycleActions(
                 onScenePhase: { phase in
                     if phase == .active {
@@ -97,6 +123,8 @@ struct RootView: View {
                 },
                 onAppear: {
                     ArchivoFont.registerIfNeeded()
+                    AppTips.configure()
+                    AppTips.ready = onboarded
                     BuiltInGames.seedIfNeeded(in: context)
                     cloud.start(containerIsCloud: Storage.mode.isCloud)
                 },

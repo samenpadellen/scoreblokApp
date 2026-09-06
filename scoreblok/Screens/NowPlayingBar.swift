@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// Balk onderin zolang er een potje loopt en je ergens anders in de app kijkt.
 /// Zelfde behandeling als de "potje open"-kaart op Spelen, zodat het één ding
@@ -8,6 +9,11 @@ struct NowPlayingBar: View {
     let onResume: () -> Void
 
     var body: some View {
+        content
+            .popoverTip(ResumeTip())
+    }
+
+    private var content: some View {
         Button(action: onResume) {
             HStack(spacing: 0) {
                 HStack(spacing: 14) {

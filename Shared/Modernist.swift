@@ -26,6 +26,20 @@ enum M {
     static let redTint = Color(hex: 0xEC3013).opacity(0.05)
 
     static func inkAlpha(_ a: Double) -> Color { ink.opacity(a) }
+
+    // MARK: - Verlopen voor de widgets
+
+    /// Het accent als vlak, van licht naar diep. Alleen op het beginscherm:
+    /// binnen de app blijft alles vlak.
+    static let redGradient = LinearGradient(
+        colors: [Color(hex: 0xF4481F), Color(hex: 0xC8250A)],
+        startPoint: .topLeading, endPoint: .bottomTrailing)
+
+    /// De donkere tegenhanger, voor StandBy op de lader.
+    static let inkGradient = LinearGradient(
+        colors: [Color(hex: 0x2A2827), Color(hex: 0x0B0A0A)],
+        startPoint: .topLeading, endPoint: .bottomTrailing)
+
     static func paperAlpha(_ a: Double) -> Color { paper.opacity(a) }
 
     /// De zware scheidslijn (2px in het ontwerp) tussen hoofdgebieden.

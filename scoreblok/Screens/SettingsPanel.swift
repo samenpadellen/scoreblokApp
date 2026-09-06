@@ -23,6 +23,8 @@ struct SettingsPanel: View {
     @State private var importing = false
     @State private var message: String?
     @State private var isError = false
+    @Environment(\.openTour) private var openTour
+    @State private var tipsReset = false
 
     var body: some View {
         ModalPanel(title: "Instellingen", width: 620, onClose: onClose) {
@@ -34,6 +36,7 @@ struct SettingsPanel: View {
                     cloudSection
                     storageSection
                     searchSection
+                    helpSection
                     aboutSection
                     creditsSection
                 }
@@ -220,6 +223,32 @@ struct SettingsPanel: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
+        }
+    }
+
+    // MARK: - Uitleg
+
+    private var helpSection: some View {
+        section("Uitleg") {
+            VStack(alignment: .leading, spacing: 12) {
+                RuleRow(title: "Rondleiding",
+                        hint: "De vijf schermen die je bij de eerste start zag.") {
+                    OutlineButton(title: "Opnieuw bekijken") {
+                        onClose()
+                        openTour()
+                    }
+                }
+                RuleRow(title: "Tips in de app",
+                        hint: tipsReset
+                            ? "Staan klaar. Ze verschijnen weer zodra je de app opnieuw opent."
+                            : "De kleine uitleg die één keer bij een knop verschijnt.") {
+                    OutlineButton(title: tipsReset ? "Staat klaar" : "Opnieuw tonen") {
+                        AppTips.requestReset()
+                        tipsReset = true
+                    }
+                }
+            }
+            .padding(.bottom, 20)
         }
     }
 

@@ -58,3 +58,15 @@ struct AdaptiveSplit<Leading: View, Trailing: View>: View {
         }
     }
 }
+
+/// De rondleiding opnieuw openen, vanaf elke plek die er een knop voor heeft.
+private struct OpenTourKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var openTour: () -> Void {
+        get { self[OpenTourKey.self] }
+        set { self[OpenTourKey.self] = newValue }
+    }
+}

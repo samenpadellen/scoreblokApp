@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import SwiftData
 
 struct BoardScreen: View {
@@ -126,7 +127,10 @@ struct BoardScreen: View {
             OutlineButton(title: "↺ Undo",
                           tint: undoStack.isEmpty ? M.inkAlpha(0.35) : M.red) { undo() }
                 .disabled(undoStack.isEmpty)
+                .help("Maak de laatste invoer ongedaan")
+                .popoverTip(UndoTip())
             OutlineButton(title: "Bewaar en stop") { pause() }
+                .help("Bewaar dit potje en ga er later mee verder")
             SolidButton(title: "Potje afronden", fill: M.ink, fontSize: 12.5) {
                 confirmFinish = true
             }

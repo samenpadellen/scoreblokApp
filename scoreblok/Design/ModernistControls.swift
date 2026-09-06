@@ -396,6 +396,8 @@ struct ModalPanel<Content: View>: View {
                             .frame(width: M.tap, height: M.tap)
                     }
                     .buttonStyle(.plain)
+                    .help("Sluiten")
+                    .accessibilityLabel("Sluiten")
                 }
                 .padding(.leading, 20)
                 .padding(.trailing, 6)

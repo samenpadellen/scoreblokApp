@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import SwiftData
 
 struct PlayScreen: View {
@@ -386,6 +387,8 @@ struct PlayScreen: View {
             .padding(.horizontal, 28)
         }
         .overlay(alignment: .top) { Hairline() }
+        .help("Berg spellen op die je niet speelt")
+        .popoverTip(CupboardTip())
     }
 
     private var phoneNewGameRow: some View {

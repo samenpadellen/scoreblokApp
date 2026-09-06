@@ -1,6 +1,44 @@
 import SwiftUI
 import WidgetKit
 
+/// Op het beginscherm staat de widget op een gekleurd verloop; binnen de app
+/// blijft alles inkt op grond. Eén palet dat omschakelt houdt beide leesbaar
+/// zonder de opmaak te verdubbelen.
+struct WidgetPalette {
+    var fg: Color = M.ink
+    var soft: Color = M.inkAlpha(0.6)
+    var foot: Color = M.inkAlpha(0.7)
+    /// De leidende waarde. Op grond draagt het rood dat; op rood kan kleur het
+    /// niet meer dragen, dus draagt helderheid het.
+    var lead: Color = M.red
+    var value: Color = M.ink
+    var band: Color = M.paperDeep
+    var hairline: Color = M.hairline
+    var rule: Color = M.ruleHeavy
+
+    static let onPaper = WidgetPalette()
+    static let onRed = WidgetPalette(
+        fg: M.paper,
+        soft: M.paperAlpha(0.72),
+        foot: M.paperAlpha(0.74),
+        lead: M.paper,
+        value: M.paperAlpha(0.68),
+        band: M.paperAlpha(0.14),
+        hairline: M.paperAlpha(0.24),
+        rule: M.paperAlpha(0.45))
+}
+
+private struct WidgetPaletteKey: EnvironmentKey {
+    static let defaultValue = WidgetPalette.onPaper
+}
+
+extension EnvironmentValues {
+    var widgetPalette: WidgetPalette {
+        get { self[WidgetPaletteKey.self] }
+        set { self[WidgetPaletteKey.self] = newValue }
+    }
+}
+
 struct StandingsWidgetView: View {
     let snapshot: WidgetSnapshot?
 
@@ -14,6 +52,9 @@ struct StandingsWidgetView: View {
         family == .systemMedium && !showsBackground
     }
 
+    /// StandBy houdt zijn eigen donkere opmaak; de rest staat op het verloop.
+    private var p: WidgetPalette { isStandBy ? .onPaper : .onRed }
+
     var body: some View {
         Group {
             switch family {
@@ -25,9 +66,10 @@ struct StandingsWidgetView: View {
             default: large
             }
         }
+        .environment(\.widgetPalette, p)
         .widgetURL(snapshot?.destination)
         .containerBackground(for: .widget) {
-            if isStandBy { Color(hex: 0x0D0C0C) } else { M.paper }
+            if isStandBy { M.inkGradient } else { M.redGradient }
         }
     }
 
@@ -54,13 +96,13 @@ struct StandingsWidgetView: View {
         Text("\(leader.total)")
             .font(M.font(42, .extraBold))
             .tracking(em: -0.04, size: 42)
-            .foregroundStyle(M.red)
+            .foregroundStyle(p.lead)
             .minimumScaleFactor(0.6)
             .lineLimit(1)
         Text("\(leader.name) leidt")
             .font(M.font(15, .extraBold))
             .tracking(em: -0.01, size: 15)
-            .foregroundStyle(M.ink)
+            .foregroundStyle(p.fg)
             .lineLimit(1)
             .padding(.top, 8)
         Spacer(minLength: 0)
@@ -77,12 +119,12 @@ struct StandingsWidgetView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(row.name)
                         .font(M.font(12, .semiBold))
-                        .foregroundStyle(M.ink)
+                        .foregroundStyle(p.fg)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     Text(row.winRate.percentText)
                         .font(M.font(14, .extraBold))
-                        .foregroundStyle(index == 0 ? M.red : M.ink)
+                        .foregroundStyle(index == 0 ? p.lead : p.value)
                 }
                 .padding(.top, 6)
                 .frame(minHeight: 23, alignment: .top)
@@ -106,7 +148,7 @@ struct StandingsWidgetView: View {
                 Text(snapshot?.open?.gameName ?? "Ranglijst")
                     .font(M.font(16, .extraBold))
                     .tracking(em: -0.01, size: 16)
-                    .foregroundStyle(M.ink)
+                    .foregroundStyle(p.fg)
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 Kicker(mediumKicker)
@@ -123,25 +165,25 @@ struct StandingsWidgetView: View {
                                 .frame(width: 5, height: 5)
                             Text(column.name)
                                 .font(M.font(11, .semiBold))
-                                .foregroundStyle(M.ink)
+                                .foregroundStyle(p.fg)
                                 .lineLimit(1)
                         }
                         Spacer(minLength: 0)
                         Text(column.value)
                             .font(M.font(30, .extraBold))
                             .tracking(em: -0.035, size: 30)
-                            .foregroundStyle(index == 0 ? M.red : M.ink)
+                            .foregroundStyle(index == 0 ? p.lead : p.value)
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
                         Text(column.sub)
                             .font(M.font(9.5, .regular))
-                            .foregroundStyle(M.inkAlpha(0.6))
+                            .foregroundStyle(p.soft)
                             .padding(.top, 6)
                             .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(EdgeInsets(top: 11, leading: 12, bottom: 12, trailing: 12))
-                    .background(index == 0 ? M.paperDeep : .clear)
+                    .background(index == 0 ? p.band : .clear)
                     .overlay(alignment: .trailing) { Rule(1, vertical: true) }
                 }
             }
@@ -198,12 +240,12 @@ struct StandingsWidgetView: View {
                     Text(snapshot?.open?.gameName ?? "Ranglijst")
                         .font(M.font(23, .extraBold))
                         .tracking(em: -0.02, size: 23)
-                        .foregroundStyle(M.ink)
+                        .foregroundStyle(p.fg)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     Text(snapshot?.open?.position ?? (snapshot?.period ?? "90 dagen"))
                         .font(M.font(11, .regular))
-                        .foregroundStyle(M.inkAlpha(0.65))
+                        .foregroundStyle(p.soft)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -214,29 +256,30 @@ struct StandingsWidgetView: View {
                 HStack(spacing: 11) {
                     Text("\(index + 1)")
                         .font(M.font(11, .extraBold))
-                        .foregroundStyle(M.inkAlpha(0.6))
+                        .foregroundStyle(p.soft)
                         .frame(width: 12, alignment: .leading)
                     AvatarShape(index: row.avatar)
                         .fill(Color(hex: M.playerRamp[row.ramp % M.playerRamp.count].ink))
                         .frame(width: 26, height: 26)
                         .background(Color(hex: M.playerRamp[row.ramp % M.playerRamp.count].bg))
+                        .overlay(Rectangle().stroke(p.hairline, lineWidth: 1))
                     Text(row.name)
                         .font(M.font(14, .semiBold))
-                        .foregroundStyle(M.ink)
+                        .foregroundStyle(p.fg)
                         .lineLimit(1)
                     Spacer(minLength: 4)
                     Text(row.sub)
                         .font(M.font(10.5, .regular))
-                        .foregroundStyle(M.inkAlpha(0.6))
+                        .foregroundStyle(p.soft)
                     Text(row.value)
                         .font(M.font(20, .extraBold))
                         .tracking(em: -0.02, size: 20)
-                        .foregroundStyle(M.ink)
+                        .foregroundStyle(p.fg)
                         .frame(width: 48, alignment: .trailing)
                 }
                 .padding(.horizontal, 18)
                 .frame(minHeight: 44)
-                .background(index == 0 ? M.paperDeep : .clear)
+                .background(index == 0 ? p.band : .clear)
                 .overlay(alignment: .bottom) { Rule(1) }
             }
 
@@ -249,14 +292,14 @@ struct StandingsWidgetView: View {
                     HStack(spacing: 0) {
                         Text(round.label)
                             .font(M.font(11, .regular))
-                            .foregroundStyle(M.inkAlpha(0.6))
+                            .foregroundStyle(p.soft)
                             .frame(width: 40)
                             .padding(.vertical, 7)
                             .overlay(alignment: .trailing) { Rule(1, vertical: true) }
                         ForEach(Array(round.cells.enumerated()), id: \.offset) { _, cell in
                             Text(cell)
                                 .font(M.font(12.5, .semiBold))
-                                .foregroundStyle(M.ink)
+                                .foregroundStyle(p.fg)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 7)
                                 .overlay(alignment: .trailing) { Rule(1, vertical: true) }
@@ -318,7 +361,7 @@ struct StandingsWidgetView: View {
             }
             .frame(width: 150, alignment: .leading)
             .padding(16)
-            .background(M.red)
+            .background(M.redGradient)
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(standBySub)
@@ -462,30 +505,32 @@ struct StandingsWidgetView: View {
 
 private struct Kicker: View {
     let text: String
+    @Environment(\.widgetPalette) private var palette
     init(_ text: String) { self.text = text }
 
     var body: some View {
         Text(text)
             .font(M.font(9, .semiBold))
             .tracking(em: 0.12, size: 9)
-            .foregroundStyle(M.inkAlpha(0.65))
+            .foregroundStyle(palette.soft)
             .lineLimit(1)
     }
 }
 
 private struct Footnote: View {
     let text: String
+    @Environment(\.widgetPalette) private var palette
     init(_ text: String) { self.text = text }
 
     var body: some View {
         Text(text)
             .font(M.font(10.5, .regular))
-            .foregroundStyle(M.inkAlpha(0.7))
+            .foregroundStyle(palette.foot)
             .lineLimit(2)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.top, 9)
             .overlay(alignment: .top) {
-                Rectangle().fill(Color(hex: 0xC9C5C5)).frame(height: 1)
+                Rectangle().fill(palette.hairline).frame(height: 1)
             }
     }
 }
@@ -493,6 +538,7 @@ private struct Footnote: View {
 private struct Rule: View {
     let weight: CGFloat
     var vertical = false
+    @Environment(\.widgetPalette) private var palette
     init(_ weight: CGFloat, vertical: Bool = false) {
         self.weight = weight
         self.vertical = vertical
@@ -500,7 +546,7 @@ private struct Rule: View {
 
     var body: some View {
         Rectangle()
-            .fill(weight >= 2 ? M.ruleHeavy : M.hairline)
+            .fill(weight >= 2 ? palette.rule : palette.hairline)
             .frame(width: vertical ? weight : nil, height: vertical ? nil : weight)
     }
 }

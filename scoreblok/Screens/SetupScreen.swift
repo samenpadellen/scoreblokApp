@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 import SwiftData
 
 struct SetupScreen: View {
@@ -345,7 +346,9 @@ struct SetupScreen: View {
                 hint: "Houd per ronde bij hoeveel jokers iemand had. Telt door in de statistieken.",
                 minHeight: 76) {
             HardToggle(isOn: $tracksJokers)
+                .help("Jokers meetellen; alleen vóór het potje in te stellen")
         }
+        .popoverTip(JokerTip())
     }
 
     private var negativeRow: some View {
