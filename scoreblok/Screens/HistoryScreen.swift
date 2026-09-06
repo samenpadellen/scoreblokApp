@@ -12,6 +12,7 @@ struct HistoryScreen: View {
     @State private var playerFilter: UUID?
     @State private var yearFilter: Int?
     @Environment(\.isNarrow) private var isNarrow
+    @Environment(\.isCompact) private var isCompact
     @AppStorage(SettingsKey.showAbandoned) private var showAbandoned = true
 
     private var finished: [Match] {
@@ -56,7 +57,8 @@ struct HistoryScreen: View {
     private var header: some View {
         ScreenTitle("Geschiedenis")
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(EdgeInsets(top: 24, leading: 28, bottom: 18, trailing: 28))
+            .padding(EdgeInsets(top: isCompact ? 12 : 24, leading: isCompact ? 20 : 28,
+                                bottom: isCompact ? 14 : 18, trailing: isCompact ? 20 : 28))
     }
 
     private var filterBar: some View {
@@ -126,9 +128,10 @@ struct HistoryScreen: View {
             }
 
             ForEach(filtered) { match in
-                RowButton(minHeight: 70) {
+                RowButton(minHeight: isCompact ? 74 : 70) {
                     opened = match
                 } content: {
+                    if isCompact { compactRow(match) } else {
                     HStack(spacing: 18) {
                         Text((match.endedAt ?? match.startedAt)
                             .formatted(.dateTime.day().month(.abbreviated)).uppercased())
@@ -175,10 +178,52 @@ struct HistoryScreen: View {
                             .foregroundStyle(M.inkAlpha(0.35))
                     }
                     .padding(.horizontal, 28)
+                    }
                 }
                 Hairline()
             }
         }
+    }
+
+    /// Op de telefoon past de rij niet op één regel: datum en spel boven,
+    /// de standen eronder.
+    private func compactRow(_ match: Match) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                GameMark(mono: match.mono, size: 30)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(match.gameName)
+                        .font(M.font(15, .extraBold))
+                        .foregroundStyle(M.ink)
+                        .lineLimit(1)
+                    Text("\((match.endedAt ?? match.startedAt).formatted(.dateTime.day().month(.abbreviated))) · \(meta(match))")
+                        .font(M.font(11, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                Tag(text: match.isAbandoned ? "Afgebroken" : "\(match.winner?.name ?? "—") won",
+                    background: match.isAbandoned ? M.paperKey : M.ink,
+                    foreground: match.isAbandoned ? M.inkAlpha(0.6) : M.paper,
+                    size: 9)
+            }
+            HStack(spacing: 6) {
+                ForEach(match.standings.prefix(4)) { standing in
+                    HStack(spacing: 6) {
+                        PlayerMark(player: standing.player, size: 14)
+                        Text("\(standing.total)")
+                            .font(M.font(11, .semiBold))
+                            .foregroundStyle(M.ink)
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .overlay(Rectangle().stroke(M.hairline, lineWidth: 1))
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
     }
 
     private func meta(_ match: Match) -> String {

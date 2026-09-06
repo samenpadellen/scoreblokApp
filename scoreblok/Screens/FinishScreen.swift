@@ -9,6 +9,7 @@ struct FinishScreen: View {
 
     private var standings: [Standing] { match.standings }
     @State private var scorecardURL: URL?
+    @Environment(\.isCompact) private var isCompact
 
     var body: some View {
         ScrollView {
@@ -32,8 +33,8 @@ struct FinishScreen: View {
             SectionLabel("Eindstand · \(match.gameName)")
                 .padding(.bottom, 12)
             Text(winnerLine)
-                .font(M.font(42, .extraBold))
-                .tracking(em: -0.03, size: 42)
+                .font(M.font(isCompact ? 34 : 42, .extraBold))
+                .tracking(em: -0.03, size: isCompact ? 34 : 42)
                 .foregroundStyle(M.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text(meta)
@@ -42,7 +43,8 @@ struct FinishScreen: View {
                 .padding(.top, 10)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(EdgeInsets(top: 26, leading: 28, bottom: 22, trailing: 28))
+        .padding(EdgeInsets(top: isCompact ? 16 : 26, leading: isCompact ? 20 : 28,
+                            bottom: isCompact ? 20 : 22, trailing: isCompact ? 20 : 28))
     }
 
     private var winnerLine: String {
@@ -73,14 +75,47 @@ struct FinishScreen: View {
 
     // MARK: - Podium en stand
 
+    @ViewBuilder
     private var podium: some View {
+        if isCompact {
+            VStack(spacing: 0) {
+                HStack(alignment: .bottom, spacing: 0) { podiumColumns }
+                    .padding(EdgeInsets(top: 22, leading: 20, bottom: 0, trailing: 20))
+                HeavyRule().padding(.top, 22)
+                SectionLabel("Volledige stand")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(EdgeInsets(top: 16, leading: 20, bottom: 10, trailing: 20))
+                Hairline()
+                standingsList(padding: 20, minHeight: 60)
+            }
+        } else {
+            wideePodium
+        }
+    }
+
+    private var wideePodium: some View {
         HStack(alignment: .bottom, spacing: 0) {
-            ForEach(Array(standings.prefix(3).enumerated()), id: \.element.id) { index, standing in
+            podiumColumns
+
+            VStack(alignment: .leading, spacing: 0) {
+                SectionLabel("Volledige stand")
+                    .padding(.bottom, 10)
+                standingsList(padding: 0, minHeight: 46)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.bottom, 22)
+        }
+        .padding(EdgeInsets(top: 28, leading: 28, bottom: 0, trailing: 28))
+    }
+
+    @ViewBuilder
+    private var podiumColumns: some View {
+        ForEach(Array(standings.prefix(3).enumerated()), id: \.element.id) { index, standing in
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 11) {
-                        PlayerMark(player: standing.player)
+                        PlayerMark(player: standing.player, size: isCompact ? 26 : 34)
                         Text(standing.player.name)
-                            .font(M.font(16, .extraBold))
+                            .font(M.font(isCompact ? 13 : 16, .extraBold))
                             .foregroundStyle(M.ink)
                             .lineLimit(1)
                     }
@@ -88,58 +123,56 @@ struct FinishScreen: View {
 
                     VStack(alignment: .leading, spacing: 0) {
                         Text("\(standing.total)")
-                            .font(M.font(36, .extraBold))
-                            .tracking(em: -0.03, size: 36)
+                            .font(M.font(isCompact ? 26 : 36, .extraBold))
+                            .tracking(em: -0.03, size: isCompact ? 26 : 36)
                             .foregroundStyle(M.paper)
                         Spacer(minLength: 12)
-                        Text(["1E PLAATS", "2E PLAATS", "3E PLAATS"][index])
-                            .font(M.font(10, .semiBold))
-                            .tracking(em: 0.12, size: 10)
+                        Text(["1E", "2E", "3E"][index])
+                            .font(M.font(isCompact ? 9 : 10, .semiBold))
+                            .tracking(em: 0.1, size: isCompact ? 9 : 10)
                             .foregroundStyle(M.paper)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: [168, 132, 104][index])
-                    .padding(14)
+                    .frame(height: isCompact ? [120, 96, 76][index] : [168, 132, 104][index])
+                    .padding(isCompact ? 12 : 14)
                     .background([M.red, M.ink, Color(hex: 0x605D5D)][index])
                 }
-                .frame(width: 190, alignment: .leading)
-                .padding(.trailing, 16)
+                .frame(maxWidth: isCompact ? .infinity : 190, alignment: .leading)
+                .padding(.trailing, isCompact ? 0 : 16)
                 .overlay(alignment: .trailing) {
-                    Rectangle().fill(M.hairline).frame(width: 1)
+                    if !isCompact { Rectangle().fill(M.hairline).frame(width: 1) }
                 }
-                .padding(.trailing, 16)
-            }
-
-            VStack(alignment: .leading, spacing: 0) {
-                SectionLabel("Volledige stand")
-                    .padding(.bottom, 10)
-                ForEach(standings) { standing in
-                    HStack(spacing: 14) {
-                        Text("\(standing.rank)")
-                            .font(M.font(13, .extraBold))
-                            .foregroundStyle(M.inkAlpha(0.4))
-                            .frame(width: 18, alignment: .leading)
-                        Text(standing.player.name)
-                            .font(M.font(15, .semiBold))
-                            .foregroundStyle(M.ink)
-                        Spacer(minLength: 8)
-                        Text(detail(for: standing))
-                            .font(M.font(12, .regular))
-                            .foregroundStyle(M.inkAlpha(0.5))
-                            .lineLimit(1)
-                        Text("\(standing.total)")
-                            .font(M.font(19, .extraBold))
-                            .foregroundStyle(M.ink)
-                            .frame(width: 54, alignment: .trailing)
-                    }
-                    .frame(minHeight: 46)
-                    .overlay(alignment: .bottom) { Hairline() }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 22)
+                .padding(.trailing, isCompact ? 12 : 16)
         }
-        .padding(EdgeInsets(top: 28, leading: 28, bottom: 0, trailing: 28))
+    }
+
+    private func standingsList(padding: CGFloat, minHeight: CGFloat) -> some View {
+        ForEach(standings) { standing in
+            HStack(spacing: isCompact ? 12 : 14) {
+                Text("\(standing.rank)")
+                    .font(M.font(isCompact ? 12 : 13, .extraBold))
+                    .foregroundStyle(M.inkAlpha(0.4))
+                    .frame(width: isCompact ? 14 : 18, alignment: .leading)
+                Text(standing.player.name)
+                    .font(M.font(15, .semiBold))
+                    .foregroundStyle(M.ink)
+                    .lineLimit(1)
+                Spacer(minLength: 8)
+                if !isCompact {
+                    Text(detail(for: standing))
+                        .font(M.font(12, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                        .lineLimit(1)
+                }
+                Text("\(standing.total)")
+                    .font(M.font(19, .extraBold))
+                    .foregroundStyle(M.ink)
+                    .frame(width: 54, alignment: .trailing)
+            }
+            .padding(.horizontal, padding)
+            .frame(minHeight: minHeight)
+            .overlay(alignment: .bottom) { Hairline() }
+        }
     }
 
     private func detail(for standing: Standing) -> String {
@@ -158,7 +191,8 @@ struct FinishScreen: View {
     // MARK: - Acties
 
     private var actions: some View {
-        HStack(spacing: 0) {
+        AnyLayout(isCompact ? AnyLayout(VStackLayout(spacing: 0))
+                  : AnyLayout(HStackLayout(spacing: 0))) {
             Button { playAgain() } label: {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Nog een potje")
@@ -169,8 +203,8 @@ struct FinishScreen: View {
                         .foregroundStyle(M.paper.opacity(0.8))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(minHeight: 76)
-                .padding(.horizontal, 28)
+                .frame(minHeight: isCompact ? 68 : 76)
+                .padding(.horizontal, isCompact ? 20 : 28)
                 .background(M.red)
                 .contentShape(.rect)
             }
@@ -182,8 +216,8 @@ struct FinishScreen: View {
                 Text("Naar statistieken")
                     .font(M.font(15, .extraBold))
                     .foregroundStyle(M.ink)
-                    .frame(width: 230, alignment: .leading)
-                    .frame(minHeight: 76)
+                    .frame(maxWidth: isCompact ? .infinity : 230, alignment: .leading)
+                    .frame(minHeight: isCompact ? 60 : 76)
                     .padding(.horizontal, 24)
                     .contentShape(.rect)
             }
@@ -196,8 +230,8 @@ struct FinishScreen: View {
                     Text("Deel het blaadje")
                         .font(M.font(15, .extraBold))
                         .foregroundStyle(M.ink)
-                        .frame(width: 200, alignment: .leading)
-                        .frame(minHeight: 76)
+                        .frame(maxWidth: isCompact ? .infinity : 200, alignment: .leading)
+                        .frame(minHeight: isCompact ? 60 : 76)
                         .padding(.horizontal, 24)
                         .contentShape(.rect)
                 }
@@ -209,8 +243,8 @@ struct FinishScreen: View {
                 Text("Klaar")
                     .font(M.font(15, .semiBold))
                     .foregroundStyle(M.inkAlpha(0.6))
-                    .frame(width: 150, alignment: .leading)
-                    .frame(minHeight: 76)
+                    .frame(maxWidth: isCompact ? .infinity : 150, alignment: .leading)
+                    .frame(minHeight: isCompact ? 60 : 76)
                     .padding(.horizontal, 24)
                     .contentShape(.rect)
             }

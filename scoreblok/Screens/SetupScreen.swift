@@ -20,6 +20,7 @@ struct SetupScreen: View {
     @State private var newAvatar = 0
     @State private var newRamp = 0
     @Environment(\.isNarrow) private var isNarrow
+    @Environment(\.isCompact) private var isCompact
 
     private var roster: [Player] { allPlayers.filter { !$0.isArchived } }
     private var seated: [Player] { chosen.compactMap { id in roster.first { $0.id == id } } }
@@ -32,7 +33,15 @@ struct SetupScreen: View {
             toolbar
             HeavyRule()
 
-            if isNarrow {
+            if isCompact {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        participants
+                        rules
+                    }
+                }
+                startBar
+            } else if isNarrow {
                 // Staand past het niet naast elkaar: regels boven, spelers eronder.
                 ScrollView {
                     VStack(spacing: 0) {
@@ -58,14 +67,48 @@ struct SetupScreen: View {
 
     // MARK: - Balk
 
+    @ViewBuilder
     private var toolbar: some View {
-        ScreenBar(backTitle: "Spelen",
-                  onBack: { router.screen = .play },
-                  title: "Potje opzetten · \(template.name)") {
-            OutlineButton(title: "Zelfde ploeg als vorige keer") { repeatLastTeam() }
-                .opacity(lastTeam == nil ? 0.4 : 1)
-                .disabled(lastTeam == nil)
-            SolidButton(title: "Start potje", fontSize: 14, enabled: canStart) { start() }
+        if isCompact {
+            // Op de telefoon alleen terug en de spelnaam; starten gebeurt
+            // onderaan, in duimbereik.
+            HStack(spacing: 12) {
+                BackLink(title: "Spelen") { router.screen = .play }
+                Spacer(minLength: 0)
+                Text(template.name)
+                    .font(M.font(14, .extraBold))
+                    .foregroundStyle(M.ink)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
+        } else {
+            ScreenBar(backTitle: "Spelen",
+                      onBack: { router.screen = .play },
+                      title: "Potje opzetten · \(template.name)") {
+                OutlineButton(title: "Zelfde ploeg als vorige keer") { repeatLastTeam() }
+                    .opacity(lastTeam == nil ? 0.4 : 1)
+                    .disabled(lastTeam == nil)
+                SolidButton(title: "Start potje", fontSize: 14, enabled: canStart) { start() }
+            }
+        }
+    }
+
+    /// De startknop plakt onderaan zodra de zijbalk wegvalt.
+    private var startBar: some View {
+        VStack(spacing: 0) {
+            HeavyRule()
+            HStack(spacing: 10) {
+                OutlineButton(title: "Zelfde ploeg") { repeatLastTeam() }
+                    .opacity(lastTeam == nil ? 0.4 : 1)
+                    .disabled(lastTeam == nil)
+                SolidButton(title: "Start potje", fontSize: 14,
+                            minHeight: 48, enabled: canStart) { start() }
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(EdgeInsets(top: 12, leading: 16, bottom: 14, trailing: 16))
+            .background(M.paperDeep)
         }
     }
 
@@ -87,6 +130,16 @@ struct SetupScreen: View {
                 playerRow(player)
             }
 
+            playerCountWarning
+            if !isCompact {
+                seatOrderSection
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var seatOrderSection: some View {
+        Group {
             SectionLabel("Volgorde aan tafel")
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(EdgeInsets(top: 20, leading: 24, bottom: 12, trailing: 24))
@@ -105,37 +158,51 @@ struct SetupScreen: View {
                 Hairline()
             }
 
-            if seated.count > template.maxPlayers || (seated.count > 0 && seated.count < template.minPlayers) {
-                Text("\(template.name) speel je met \(template.minPlayers)–\(template.maxPlayers) spelers.")
-                    .font(M.font(12.5, .regular))
-                    .foregroundStyle(M.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: 16, leading: 24, bottom: 24, trailing: 24))
-            }
+        }
+    }
+
+    @ViewBuilder
+    private var playerCountWarning: some View {
+        if seated.count > template.maxPlayers
+            || (seated.count > 0 && seated.count < template.minPlayers) {
+            Text("\(template.name) speel je met \(template.minPlayers)–\(template.maxPlayers) spelers.")
+                .font(M.font(12.5, .regular))
+                .foregroundStyle(M.red)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(EdgeInsets(top: 14, leading: isCompact ? 20 : 24,
+                                    bottom: 14, trailing: isCompact ? 20 : 24))
         }
     }
 
     private func playerRow(_ player: Player) -> some View {
         let isOn = chosen.contains(player.id)
-        return RowButton(background: isOn ? M.inkAlpha(0.045) : .clear, minHeight: 64) {
+        let seat = chosen.firstIndex(of: player.id).map { "zit \($0 + 1)" }
+
+        return RowButton(background: isOn ? M.inkAlpha(0.045) : .clear,
+                         minHeight: isCompact ? 56 : 64) {
             toggle(player)
         } content: {
             HStack(spacing: 13) {
                 HardCheckbox(isOn: isOn)
-                PlayerMark(player: player)
-                VStack(alignment: .leading, spacing: 3) {
+                PlayerMark(player: player, size: isCompact ? 30 : 34)
+                VStack(alignment: .leading, spacing: isCompact ? 4 : 3) {
                     Text(player.name)
-                        .font(M.font(15, .semiBold))
+                        .font(M.font(isCompact ? 14.5 : 15, .semiBold))
                         .foregroundStyle(M.ink)
                         .lineLimit(1)
                     Text(meta(for: player))
-                        .font(M.font(11.5, .regular))
+                        .font(M.font(isCompact ? 11 : 11.5, .regular))
                         .foregroundStyle(M.inkAlpha(0.5))
                         .lineLimit(1)
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+                if isCompact, let seat {
+                    Text(seat)
+                        .font(M.font(11, .semiBold))
+                        .foregroundStyle(M.inkAlpha(0.4))
+                }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, isCompact ? 20 : 24)
         }
     }
 

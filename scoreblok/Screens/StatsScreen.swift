@@ -9,6 +9,7 @@ struct StatsScreen: View {
     @State private var period: StatsPeriod = .preferred
     @State private var gameFilter: String? = nil
     @Environment(\.isNarrow) private var isNarrow
+    @Environment(\.isCompact) private var isCompact
 
     private var me: Player? { players.first(where: \.isMe) ?? players.first }
 
@@ -43,8 +44,12 @@ struct StatsScreen: View {
                     HeavyRule()
                     formAndRanking
                     HeavyRule()
-                    headToHeadAndRecords
-                    HeavyRule()
+                    if isCompact {
+                        detailLink
+                    } else {
+                        headToHeadAndRecords
+                        HeavyRule()
+                    }
                     jokerBlock
                     calendarAndMix
                 }
@@ -55,7 +60,8 @@ struct StatsScreen: View {
     private var header: some View {
         ScreenTitle("Statistieken")
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(EdgeInsets(top: 24, leading: 28, bottom: 16, trailing: 28))
+            .padding(EdgeInsets(top: isCompact ? 12 : 24, leading: isCompact ? 20 : 28,
+                                bottom: isCompact ? 12 : 16, trailing: isCompact ? 20 : 28))
     }
 
     private var empty: some View {
@@ -69,7 +75,49 @@ struct StatsScreen: View {
 
     // MARK: - Filterbalk
 
+    @ViewBuilder
     private var filterBar: some View {
+        if isCompact {
+            // Op een telefoon past de balk niet; hij schuift, en de
+            // voetnoot valt weg.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(StatsPeriod.allCases) { option in
+                        let isOn = option == period
+                        Button { period = option } label: {
+                            Text(option.rawValue)
+                                .font(M.font(12.5, .extraBold))
+                                .foregroundStyle(isOn ? M.paper : M.ink)
+                                .fixedSize()
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 46)
+                                .background(isOn ? M.ink : .clear)
+                        }
+                        .buttonStyle(.plain)
+                        Rectangle().fill(M.hairline).frame(width: 1, height: 46)
+                    }
+                    Menu {
+                        Button("Alle spellen") { gameFilter = nil }
+                        ForEach(gameNames, id: \.self) { name in
+                            Button(name) { gameFilter = name }
+                        }
+                    } label: {
+                        Text("\(gameFilter ?? "Alle spellen") ▾")
+                            .font(M.font(12.5, .semiBold))
+                            .foregroundStyle(M.inkAlpha(0.6))
+                            .fixedSize()
+                            .padding(.horizontal, 16)
+                            .frame(minHeight: 46)
+                    }
+                    .menuStyle(.borderlessButton)
+                }
+            }
+        } else {
+            wideFilterBar
+        }
+    }
+
+    private var wideFilterBar: some View {
         HStack(spacing: 0) {
             ForEach(StatsPeriod.allCases) { option in
                 let isOn = option == period
@@ -137,10 +185,12 @@ struct StatsScreen: View {
              previous.isEmpty ? "geen vergelijking" : (evenings - prevEvenings).trendText)
         ]
 
+        // Op de telefoon vier tegels op twee kolommen; speelavonden valt af.
+        let shown = isCompact ? Array(items.prefix(4)) : items
         let columns = Array(repeating: GridItem(.flexible(), spacing: 0),
-                            count: isNarrow ? 2 : items.count)
+                            count: isNarrow ? 2 : shown.count)
         return LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, item in
                 VStack(alignment: .leading, spacing: 0) {
                     Text(item.0.uppercased())
                         .font(M.font(10, .semiBold))
@@ -379,6 +429,31 @@ struct StatsScreen: View {
             }
         }
         .padding(EdgeInsets(top: 18, leading: 24, bottom: 20, trailing: 24))
+    }
+
+    /// Op de telefoon passen kop-tot-kop en records er niet meer bij; die
+    /// krijgen een eigen scherm.
+    private var detailLink: some View {
+        RowButton(minHeight: 64) {
+            router.screen = .statsDetail
+        } content: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Kop-tot-kop en records")
+                        .font(M.font(15, .semiBold))
+                        .foregroundStyle(M.ink)
+                    Text("Onderlinge balans en de uitschieters")
+                        .font(M.font(11.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                }
+                Spacer(minLength: 0)
+                Text("→")
+                    .font(M.font(15, .regular))
+                    .foregroundStyle(M.inkAlpha(0.3))
+            }
+            .padding(.horizontal, 20)
+        }
+        .overlay(alignment: .bottom) { HeavyRule() }
     }
 
     // MARK: - Jokerteller

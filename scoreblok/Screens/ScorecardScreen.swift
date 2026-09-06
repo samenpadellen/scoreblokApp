@@ -12,6 +12,7 @@ struct ScorecardScreen: View {
     @State private var editingText = ""
     @State private var confirmFinish = false
     @Environment(\.isNarrow) private var isNarrow
+    @Environment(\.isCompact) private var isCompact
 
     private var spec: ScorecardSpec { match.scorecard ?? .empty }
     private var seats: [Player] { match.orderedPlayers }
@@ -35,6 +36,7 @@ struct ScorecardScreen: View {
             HeavyRule()
             ScrollView {
                 VStack(spacing: 0) {
+                    if isCompact { totalBlock }
                     columnsBlock
                     lowerBlocks
                 }
@@ -47,7 +49,53 @@ struct ScorecardScreen: View {
 
     // MARK: - Balk
 
+    @ViewBuilder
     private var toolbar: some View {
+        if isCompact {
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    BackLink(title: "Spelen") { router.screen = .play }
+                    Spacer(minLength: 0)
+                    Text(match.gameName)
+                        .font(M.font(14, .extraBold))
+                        .foregroundStyle(M.ink)
+                        .lineLimit(1)
+                    SolidButton(title: "Afronden", fill: M.ink,
+                                fontSize: 11.5, minHeight: 36) { confirmFinish = true }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+                Hairline()
+                // De spelerkeuze krijgt een eigen regel en schuift.
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(Array(seats.enumerated()), id: \.element.id) { index, player in
+                            let isOn = player.id == current?.id
+                            Button { selectedPlayerID = player.id } label: {
+                                Text(player.name)
+                                    .font(M.font(12.5, .extraBold))
+                                    .foregroundStyle(isOn ? M.paper : M.ink)
+                                    .padding(.horizontal, 16)
+                                    .frame(minHeight: 44)
+                                    .background(isOn ? M.ink : .clear)
+                                    .overlay(alignment: .trailing) {
+                                        if index < seats.count - 1 {
+                                            Rectangle().fill(M.hairline).frame(width: 1)
+                                        }
+                                    }
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        } else {
+            wideToolbar
+        }
+    }
+
+    private var wideToolbar: some View {
         ScreenBar(backTitle: "Spelen",
                   onBack: { router.screen = .play },
                   title: match.gameName,
@@ -190,7 +238,7 @@ struct ScorecardScreen: View {
                     penaltyRow
                     Hairline()
                 }
-                totalBlock
+                if !isCompact { totalBlock }
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

@@ -26,9 +26,22 @@ struct PlayersScreen: View {
 
                 if visible.isEmpty {
                     empty
+                } else if isCompact {
+                    Hairline()
+                    ForEach(StatsEngine.standings(for: visible, in: counted)) { item in
+                        phoneRow(item)
+                        Hairline()
+                    }
+                    // Spelers zonder afgerond potje vallen buiten de stand.
+                    ForEach(visible.filter { p in
+                        !counted.contains { $0.players.contains { $0.id == p.id } }
+                    }) { player in
+                        phoneRow(PlayerStanding(player: player))
+                        Hairline()
+                    }
                 } else {
                     Hairline()
-                    GridRows(items: visible, columns: isCompact ? 1 : (isNarrow ? 2 : 3)) { player in
+                    GridRows(items: visible, columns: isNarrow ? 2 : 3) { player in
                         card(player)
                     }
                 }
@@ -76,7 +89,8 @@ struct PlayersScreen: View {
             Spacer()
             SolidButton(title: "Nieuw profiel") { beginNewPlayer() }
         }
-        .padding(EdgeInsets(top: 24, leading: 28, bottom: 18, trailing: 28))
+        .padding(EdgeInsets(top: isCompact ? 12 : 24, leading: isCompact ? 20 : 28,
+                            bottom: isCompact ? 14 : 18, trailing: isCompact ? 20 : 28))
     }
 
     private var empty: some View {
@@ -89,6 +103,51 @@ struct PlayersScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(28)
+    }
+
+    /// Op de telefoon één rij per speler: markering, naam, en de cijfers
+    /// rechts in plaats van een kaart met drie kolommen.
+    private func phoneRow(_ item: PlayerStanding) -> some View {
+        let streak = StatsEngine.streak(for: item.player, in: counted)
+
+        return RowButton(minHeight: 64) {
+            router.screen = .detail(item.player)
+        } content: {
+            HStack(spacing: 13) {
+                PlayerMark(player: item.player, size: 32)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 7) {
+                        Text(item.player.name)
+                            .font(M.font(15, .semiBold))
+                            .foregroundStyle(M.ink)
+                            .lineLimit(1)
+                        if item.player.isMe {
+                            Tag(text: "Jij", background: M.inkAlpha(0.12),
+                                foreground: M.inkAlpha(0.7), size: 8.5)
+                        }
+                    }
+                    Text(item.played == 0 ? "nog niets gespeeld"
+                         : "\(item.played) potjes · reeks \(streak.short)")
+                        .font(M.font(11, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(item.played == 0 ? "—" : item.winRate.percentText)
+                        .font(M.font(17, .extraBold))
+                        .foregroundStyle(M.ink)
+                    Text("winst")
+                        .font(M.font(9.5, .semiBold))
+                        .tracking(em: 0.1, size: 9.5)
+                        .foregroundStyle(M.inkAlpha(0.45))
+                }
+                Text("→")
+                    .font(M.font(15, .regular))
+                    .foregroundStyle(M.inkAlpha(0.3))
+            }
+            .padding(.horizontal, 20)
+        }
     }
 
     private func card(_ player: Player) -> some View {
