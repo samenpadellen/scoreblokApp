@@ -101,7 +101,7 @@ struct OutlineButton: View {
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .frame(minHeight: minHeight)
-                .background(pressed ? M.inkAlpha(0.07) : .clear)
+                .background(pressed ? M.paperDeep : M.surface)
                 .overlay(Rectangle().stroke(tint, lineWidth: 1.5))
         }
         .buttonStyle(.plain)
@@ -170,7 +170,7 @@ struct SegmentedBar<T: Hashable>: View {
                         .foregroundStyle(isOn ? M.paper : M.ink)
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: M.tap)
-                        .background(isOn ? M.ink : .clear)
+                        .background(isOn ? M.ink : M.surface)
                         // Als overlay, zodat de lijn de balk niet oprekt.
                         .overlay(alignment: .trailing) {
                             if index < options.count - 1 {
@@ -207,6 +207,7 @@ struct StepperPair: View {
                 .font(M.font(18, .regular))
                 .foregroundStyle(enabled ? M.ink : M.inkAlpha(0.3))
                 .frame(width: M.tap, height: M.tap)
+                .background(M.surface)
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -312,23 +313,42 @@ struct BarMeter: View {
 }
 
 /// Rij die het hele blok beslaat en aanraakbaar is, met haarlijn eronder.
+/// Een rij die je kunt aantikken. Ligt op het witte werkvlak, zodat je
+/// zonder uitleg ziet dat hij iets doet; wat gekozen is krijgt de rode waas
+/// en een rood randje links.
 struct RowButton<Content: View>: View {
-    var background: Color = .clear
+    /// Eigen achtergrond; zonder is het het witte werkvlak.
+    var background: Color?
+    /// Gekozen of actief.
+    var isActive = false
     var minHeight: CGFloat = 52
     let action: () -> Void
     @ViewBuilder let content: () -> Content
 
     @State private var pressed = false
 
+    private var fill: Color {
+        if pressed { return M.paperDeep }
+        if isActive { return M.activeWash }
+        return background ?? M.surface
+    }
+
     var body: some View {
         Button(action: action) {
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(minHeight: minHeight)
-                .background(pressed ? M.paperDeep : background)
+                .background(fill)
+                .overlay(alignment: .leading) {
+                    if isActive {
+                        Rectangle().fill(M.red).frame(width: M.activeEdge)
+                    }
+                }
                 .contentShape(.rect)
         }
         .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
         .onLongPressGesture(minimumDuration: 0, pressing: { pressed = $0 }, perform: {})
     }
 }
@@ -368,6 +388,7 @@ struct HardTextField: View {
             .padding(.horizontal, 14)
             .frame(minHeight: minHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(M.surface)
             .overlay(Rectangle().stroke(M.ruleHeavy, lineWidth: 1))
     }
 }

@@ -179,7 +179,7 @@ struct SetupScreen: View {
         let isOn = chosen.contains(player.id)
         let seat = chosen.firstIndex(of: player.id).map { "zit \($0 + 1)" }
 
-        return RowButton(background: isOn ? M.inkAlpha(0.045) : .clear,
+        return RowButton(isActive: isOn,
                          minHeight: isCompact ? 56 : 64) {
             toggle(player)
         } content: {

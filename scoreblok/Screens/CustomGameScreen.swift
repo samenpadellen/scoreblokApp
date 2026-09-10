@@ -232,7 +232,7 @@ struct CustomGameScreen: View {
             Hairline()
 
             ForEach(ScoringMode.allCases) { option in
-                RowButton(background: mode == option ? M.redTint : .clear, minHeight: 66) {
+                RowButton(isActive: mode == option, minHeight: 66) {
                     mode = option
                 } content: {
                     HStack(alignment: .top, spacing: isCompact ? 14 : 16) {

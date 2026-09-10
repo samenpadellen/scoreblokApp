@@ -44,6 +44,7 @@ struct StatsScreen: View {
                     HeavyRule()
                     formAndRanking
                     HeavyRule()
+                    unlockBlock
                     if isCompact {
                         detailLink
                     } else {
@@ -95,7 +96,7 @@ struct StatsScreen: View {
                                 .minimumScaleFactor(0.85)
                                 .frame(maxWidth: .infinity)
                                 .frame(minHeight: 46)
-                                .background(isOn ? M.ink : .clear)
+                                .background(isOn ? M.ink : M.surface)
                                 .overlay(alignment: .trailing) {
                                     if index < StatsPeriod.allCases.count - 1 {
                                         Rectangle().fill(M.hairline).frame(width: 1)
@@ -123,6 +124,7 @@ struct StatsScreen: View {
                     }
                     .padding(.horizontal, 20)
                     .frame(minHeight: 44)
+                    .background(M.surface)
                     .contentShape(.rect)
                 }
                 .menuStyle(.borderlessButton)
@@ -142,7 +144,7 @@ struct StatsScreen: View {
                         .foregroundStyle(isOn ? M.paper : M.ink)
                         .padding(.horizontal, 18)
                         .frame(minHeight: 48)
-                        .background(isOn ? M.ink : .clear)
+                        .background(isOn ? M.ink : M.surface)
                 }
                 .buttonStyle(.plain)
                 Rectangle().fill(M.hairline).frame(width: 1)
@@ -469,6 +471,93 @@ struct StatsScreen: View {
             .padding(.horizontal, 20)
         }
         .overlay(alignment: .bottom) { HeavyRule() }
+    }
+
+    // MARK: - Vrijspelen
+
+    private var unlockPadding: CGFloat { isCompact ? 20 : 24 }
+
+    /// Per spel: vrijgespeeld is een witte rij die je opent, nog niet
+    /// vrijgespeeld blijft op papier met hoe ver je bent. Telt over alle
+    /// tijd; de gekozen periode doet hier niet toe.
+    @ViewBuilder
+    private var unlockBlock: some View {
+        let all = Insights.progress(allMatches)
+        let shown = gameFilter.map { name in all.filter { $0.gameName == name } } ?? all
+        if !shown.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Vrijspelen")
+                        .font(M.font(18, .extraBold))
+                        .foregroundStyle(M.ink)
+                    Text("Na \(Insights.unlockAt) potjes van hetzelfde spel komen er extra statistieken bij.")
+                        .font(M.font(11.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(EdgeInsets(top: 18, leading: unlockPadding, bottom: 12, trailing: unlockPadding))
+
+                ForEach(shown) { item in
+                    Hairline()
+                    if item.isUnlocked {
+                        unlockedRow(item)
+                    } else {
+                        lockedRow(item)
+                    }
+                }
+            }
+            HeavyRule()
+        }
+    }
+
+    private func unlockedRow(_ item: Insights.Progress) -> some View {
+        RowButton(minHeight: 64) {
+            router.screen = .insights(item.gameName)
+        } content: {
+            HStack(spacing: 14) {
+                GameMark(mono: item.mono, background: M.red, size: 34)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.gameName)
+                        .font(M.font(15, .semiBold))
+                        .foregroundStyle(M.ink)
+                        .lineLimit(1)
+                    Text("Vrijgespeeld · \(item.count) potjes")
+                        .font(M.font(11.5, .regular))
+                        .foregroundStyle(M.inkAlpha(0.55))
+                }
+                Spacer(minLength: 8)
+                Text("Bekijk →")
+                    .font(M.font(12.5, .extraBold))
+                    .foregroundStyle(M.red)
+            }
+            .padding(.horizontal, unlockPadding)
+        }
+    }
+
+    private func lockedRow(_ item: Insights.Progress) -> some View {
+        HStack(spacing: 14) {
+            GameMark(mono: item.mono, background: M.inkAlpha(0.3), size: 34)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(item.gameName)
+                        .font(M.font(15, .semiBold))
+                        .foregroundStyle(M.inkAlpha(0.7))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                    Text("\(item.count) van \(Insights.unlockAt)")
+                        .font(M.font(12, .semiBold))
+                        .foregroundStyle(M.inkAlpha(0.55))
+                }
+                BarMeter(fraction: item.fraction, height: 6, fill: M.ink, track: M.paperDeep)
+                Text(item.remaining == 1 ? "nog 1 potje" : "nog \(item.remaining) potjes")
+                    .font(M.font(11, .regular))
+                    .foregroundStyle(M.inkAlpha(0.5))
+            }
+        }
+        .padding(.horizontal, unlockPadding)
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Jokerteller

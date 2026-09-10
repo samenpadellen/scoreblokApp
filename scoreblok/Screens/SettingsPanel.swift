@@ -60,7 +60,7 @@ struct SettingsPanel: View {
                 note("Nog geen spelers.")
             }
             ForEach(players.filter { !$0.isArchived }) { player in
-                RowButton(background: player.isMe ? M.inkAlpha(0.045) : .clear,
+                RowButton(isActive: player.isMe,
                           minHeight: 52) {
                     for other in players { other.isMe = (other.id == player.id) }
                     Storage.save(context)

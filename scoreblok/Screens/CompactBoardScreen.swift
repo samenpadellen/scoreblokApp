@@ -307,7 +307,7 @@ struct CompactBoardScreen: View {
                                  : signDisabled ? M.inkAlpha(0.3) : M.ink)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(isConfirm ? M.red : signOn ? M.ink : isNumber ? M.paper : M.paperKey)
+                .background(isConfirm ? M.red : signOn ? M.ink : isNumber ? M.surface : M.paperKey)
                 .overlay(Rectangle().stroke(isConfirm ? M.red : M.inkAlpha(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)

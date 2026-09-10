@@ -6,6 +6,12 @@ struct FinishScreen: View {
 
     @Environment(Router.self) private var router
     @Environment(\.modelContext) private var context
+    @Query private var allMatches: [Match]
+
+    /// Dit potje was het tiende van dit spel: de extra statistieken zijn net vrijgespeeld.
+    private var unlocksInsights: Bool {
+        match.counts && Insights.unlockingMatchID(for: match.gameName, in: allMatches) == match.id
+    }
 
     private var standings: [Standing] { match.standings }
     @State private var scorecardURL: URL?
@@ -18,6 +24,10 @@ struct FinishScreen: View {
                 HeavyRule()
                 podium
                 HeavyRule()
+                if unlocksInsights {
+                    unlockBanner
+                    HeavyRule()
+                }
                 actions
             }
         }
@@ -71,6 +81,37 @@ struct FinishScreen: View {
         }
         if match.isAbandoned { parts.append("afgebroken — telt nergens mee") }
         return parts.joined(separator: " · ")
+    }
+
+    // MARK: - Vrijgespeeld
+
+    private var unlockBanner: some View {
+        RowButton(isActive: true, minHeight: 80) {
+            router.screen = .insights(match.gameName)
+        } content: {
+            HStack(spacing: 14) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("VRIJGESPEELD")
+                        .font(M.font(10, .extraBold))
+                        .tracking(em: 0.14, size: 10)
+                        .foregroundStyle(M.red)
+                    Text("Extra statistieken voor \(match.gameName)")
+                        .font(M.font(isCompact ? 16 : 18, .extraBold))
+                        .foregroundStyle(M.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Tien potjes gespeeld. Nu zie je wie vaker wint met wie vóór zich, wie de meeste jokers krijgt en meer.")
+                        .font(M.font(12, .regular))
+                        .foregroundStyle(M.inkAlpha(0.6))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Text("→")
+                    .font(M.font(18, .semiBold))
+                    .foregroundStyle(M.red)
+            }
+            .padding(.horizontal, isCompact ? 20 : 28)
+            .padding(.vertical, 14)
+        }
     }
 
     // MARK: - Podium en stand

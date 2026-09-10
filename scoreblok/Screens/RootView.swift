@@ -26,12 +26,14 @@ enum Screen: Hashable {
     case custom(GameTemplate?)
     case cupboard
     case statsDetail
+    /// De statistieken die je vrijspeelt met tien potjes van één spel.
+    case insights(String)
 
     var section: NavSection {
         switch self {
         case .play, .setup, .board, .card, .finish, .cupboard: .play
         case .players, .detail: .players
-        case .stats, .statsDetail: .stats
+        case .stats, .statsDetail, .insights: .stats
         case .history: .history
         case .custom: .custom
         }
@@ -428,6 +430,8 @@ struct RootView: View {
             CupboardScreen()
         case .statsDetail:
             StatsDetailScreen()
+        case .insights(let gameName):
+            InsightsScreen(gameName: gameName).id(gameName)
         }
     }
 }

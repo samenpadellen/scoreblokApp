@@ -25,6 +25,20 @@ enum M {
     static let redWash = Color(hex: 0xFFE0D9)
     static let redTint = Color(hex: 0xEC3013).opacity(0.05)
 
+    // MARK: - Vlakken
+    //
+    // Eén regel die je vanzelf leert: wit is waar je iets doet, papier is
+    // waar je iets leest. Rijen, knoppen, velden en toetsen liggen op het
+    // witte vlak; cijfers, tabellen en uitleg op het papier eronder. Wat
+    // gekozen of actief is krijgt een rode waas met een rood randje.
+
+    /// Het werkvlak: alles wat je kunt aantikken of invullen.
+    static let surface = Color(hex: 0xFCFBFB)
+    /// Gekozen of actief: net genoeg rood om op te vallen tussen wit.
+    static let activeWash = Color(hex: 0xFFF1ED)
+    /// Breedte van het rode randje links van wat actief is.
+    static let activeEdge: CGFloat = 3
+
     static func inkAlpha(_ a: Double) -> Color { ink.opacity(a) }
 
     // MARK: - Verlopen voor de widgets

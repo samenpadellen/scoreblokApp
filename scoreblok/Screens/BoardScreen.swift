@@ -537,7 +537,7 @@ struct BoardScreen: View {
                                  : signOn ? M.paper
                                  : signDisabled ? M.inkAlpha(0.3) : M.ink)
                 .frame(width: wide ? keyWidth * 4 + 18 : keyWidth, height: isCompact ? 44 : 48)
-                .background(isConfirm ? M.red : signOn ? M.ink : isNumber ? M.paper : M.paperKey)
+                .background(isConfirm ? M.red : signOn ? M.ink : isNumber ? M.surface : M.paperKey)
                 .overlay(Rectangle().stroke(isConfirm ? M.red : M.inkAlpha(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
@@ -844,7 +844,7 @@ private struct FinishOrderBoard: View {
             Hairline()
 
             ForEach(seats) { player in
-                RowButton(background: place(of: player) != nil ? M.inkAlpha(0.045) : .clear,
+                RowButton(isActive: place(of: player) != nil,
                           minHeight: 64) {
                     assign(player)
                 } content: {

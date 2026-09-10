@@ -100,9 +100,10 @@ struct HistoryScreen: View {
         } label: {
             Text("\(label) ▾")
                 .font(M.font(12.5, .semiBold))
-                .foregroundStyle(M.inkAlpha(0.65))
+                .foregroundStyle(M.ink)
                 .padding(.horizontal, 18)
                 .frame(minHeight: 48)
+                .background(M.surface)
         }
         .menuStyle(.borderlessButton)
         .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }

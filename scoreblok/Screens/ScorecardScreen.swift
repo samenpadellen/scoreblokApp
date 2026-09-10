@@ -247,7 +247,7 @@ struct ScorecardScreen: View {
 
     private func bonusRow(_ bonus: ScoreBonus) -> some View {
         let isOn = card?.bonusKeys.contains(bonus.key) ?? false
-        return RowButton(background: isOn ? M.inkAlpha(0.045) : .clear, minHeight: 52) {
+        return RowButton(isActive: isOn, minHeight: 52) {
             guard let card else { return }
             if isOn { card.bonusKeys.removeAll { $0 == bonus.key } }
             else { card.bonusKeys.append(bonus.key) }
