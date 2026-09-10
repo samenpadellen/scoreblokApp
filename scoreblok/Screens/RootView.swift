@@ -69,6 +69,8 @@ struct RootView: View {
     @AppStorage(SettingsKey.spotlight) private var spotlightEnabled = true
     @AppStorage(SettingsKey.onboarded) private var onboarded = false
     @State private var showingTour = false
+    /// Samen bijwerken met iemand anders: open zolang dit niet nil is.
+    @State private var samenRequest: SamenRequest?
 
     /// De rondleiding staat bij de eerste start over alles heen, en is later
     /// terug te halen uit de instellingen.
@@ -95,6 +97,9 @@ struct RootView: View {
             .background(M.paper)
             .environment(router)
             .overlay { if showingSettings { SettingsPanel { showingSettings = false } } }
+            .modifier(SamenHosting(request: $samenRequest,
+                                   open: { showingSettings = false; samenRequest = .host },
+                                   leave: leaveMatchScreens))
             .overlay {
                 if showsTour {
                     OnboardingView { exit in
@@ -151,6 +156,12 @@ struct RootView: View {
                     }
                 },
                 onOpen: { url in
+                    // Een gescande QR-code om samen bij te werken.
+                    if let invite = SamenInvite(url: url) {
+                        showingSettings = false
+                        samenRequest = SamenRequest(invite: invite)
+                        return
+                    }
                     // scoreblok://match/<uuid>, scoreblok://setup, of een
                     // Spotlight-treffer op id.
                     if url.host() == "setup" || url.lastPathComponent == "setup" {
@@ -165,6 +176,17 @@ struct RootView: View {
                     }
                 }
             ))
+    }
+
+    /// Weg van een scherm dat één potje of speler toont, voordat die wordt
+    /// verwijderd, bijvoorbeeld bij ontkoppelen van een speelgroep.
+    private func leaveMatchScreens() {
+        switch router.screen {
+        case .board, .card, .finish, .detail:
+            router.screen = .play
+        default:
+            break
+        }
     }
 
     /// Het opruimen na synchroniseren gaat een kopie verwijderen die dit
@@ -433,6 +455,26 @@ struct RootView: View {
         case .insights(let gameName):
             InsightsScreen(gameName: gameName).id(gameName)
         }
+    }
+}
+
+/// Het samen-scherm bovenop alles, en de acties om het te openen. Los van het
+/// hoofdscherm, zodat de uitdrukking daar klein genoeg blijft.
+private struct SamenHosting: ViewModifier {
+    @Binding var request: SamenRequest?
+    let open: () -> Void
+    let leave: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if let current = request {
+                    SamenView(request: current) { request = nil }
+                        .id(current.id)
+                }
+            }
+            .environment(\.openSamen, open)
+            .environment(\.leaveMatchScreens, leave)
     }
 }
 

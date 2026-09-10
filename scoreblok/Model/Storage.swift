@@ -13,9 +13,23 @@ enum SchemaV1: VersionedSchema {
     }
 }
 
+/// Versie 2: speelgroepen erbij. Een nieuwe tabel, verder niets: de
+/// bestaande tabellen blijven zoals ze waren, dus de migratie is licht en
+/// werkt ook met CloudKit.
+enum SchemaV2: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(2, 0, 0) }
+
+    static var models: [any PersistentModel.Type] {
+        [Player.self, GameTemplate.self, Match.self,
+         MatchRound.self, ScoreEntry.self, ScoreCard.self, PlayGroup.self]
+    }
+}
+
 enum ScoreblokMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self] }
-    static var stages: [MigrationStage] { [] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self] }
+    static var stages: [MigrationStage] {
+        [.lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self)]
+    }
 }
 
 /// Waar de potjes staan: lokaal óf iCloud, per apparaat gekozen. Hoort
@@ -84,7 +98,7 @@ enum Storage {
     /// Wanneer er voor het laatst met zekerheid is weggeschreven.
     private(set) static var lastSaved: Date?
 
-    static let schema = Schema(versionedSchema: SchemaV1.self)
+    static let schema = Schema(versionedSchema: SchemaV2.self)
 
     /// Moet letterlijk overeenkomen met de container in het Developer-portaal
     /// en met de entitlements.

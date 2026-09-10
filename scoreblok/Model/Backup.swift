@@ -10,6 +10,8 @@ struct BackupDocument: Codable {
     var players: [PlayerData] = []
     var templates: [TemplateData] = []
     var matches: [MatchData] = []
+    /// Speelgroepen. Ontbreekt in reservekopieën van vóór de speelgroepen.
+    var groups: [GroupData]?
 
     struct PlayerData: Codable {
         var id: UUID
@@ -84,6 +86,16 @@ struct BackupDocument: Codable {
         var bonusKeys: [String]
         var numbers: [String: Int]
         var penaltyCount: Int
+    }
+
+    struct GroupData: Codable {
+        var id: UUID
+        var name: String
+        var createdAt: Date
+        var lastSyncAt: Date?
+        var memberIDs: [UUID]
+        var links: [String: String]
+        var imported: [String: Date]
     }
 }
 
@@ -163,6 +175,18 @@ enum Backup {
                             penaltyCount: $0.penaltyCount)
                   },
                   scorecard: match.scorecard)
+        }
+
+        document.groups = try context.fetch(FetchDescriptor<PlayGroup>()).map { group in
+            .init(id: group.id, name: group.name, createdAt: group.createdAt,
+                  lastSyncAt: group.lastSyncAt,
+                  memberIDs: group.memberIDs.sorted { $0.uuidString < $1.uuidString },
+                  links: Dictionary(uniqueKeysWithValues: group.links.map {
+                      ($0.key.uuidString, $0.value.uuidString)
+                  }),
+                  imported: Dictionary(uniqueKeysWithValues: group.imported.map {
+                      ($0.key.uuidString, $0.value)
+                  }))
         }
 
         return document
@@ -372,6 +396,37 @@ enum Backup {
             }
             existingMatches[data.id] = match
             result.matches += 1
+        }
+
+        // Speelgroepen gaan mee, zodat een overstap tussen lokaal en iCloud
+        // of een teruggezette kopie de koppelingen niet vergeet.
+        if let groups = document.groups {
+            var existingGroups: [UUID: PlayGroup] = [:]
+            for group in try context.fetch(FetchDescriptor<PlayGroup>()) where !group.isDeleted {
+                existingGroups[group.id] = group
+            }
+            for data in groups {
+                let group = existingGroups[data.id] ?? {
+                    let created = PlayGroup(id: data.id, name: data.name)
+                    context.insert(created)
+                    existingGroups[data.id] = created
+                    return created
+                }()
+                group.name = data.name
+                group.createdAt = data.createdAt
+                if let synced = data.lastSyncAt { group.lastSyncAt = synced }
+                group.memberIDs = group.memberIDs.union(data.memberIDs)
+                var links = group.links
+                for (remote, local) in data.links {
+                    if let r = UUID(uuidString: remote), let l = UUID(uuidString: local) { links[r] = l }
+                }
+                group.links = links
+                var imported = group.imported
+                for (id, stamp) in data.imported {
+                    if let uuid = UUID(uuidString: id) { imported[uuid] = stamp }
+                }
+                group.imported = imported
+            }
         }
 
         Storage.save(context)

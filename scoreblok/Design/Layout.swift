@@ -70,3 +70,25 @@ extension EnvironmentValues {
         set { self[OpenTourKey.self] = newValue }
     }
 }
+
+/// Het samen-scherm openen om met iemand anders potjes samen te voegen.
+private struct OpenSamenKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+/// Weg van een scherm dat één potje of speler toont, vóór die verdwijnt.
+private struct LeaveMatchScreensKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var openSamen: () -> Void {
+        get { self[OpenSamenKey.self] }
+        set { self[OpenSamenKey.self] = newValue }
+    }
+
+    var leaveMatchScreens: () -> Void {
+        get { self[LeaveMatchScreensKey.self] }
+        set { self[LeaveMatchScreensKey.self] = newValue }
+    }
+}

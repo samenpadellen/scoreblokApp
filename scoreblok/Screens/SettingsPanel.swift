@@ -28,6 +28,12 @@ struct SettingsPanel: View {
     /// De kant waarnaar je wilt overstappen, zolang je dat nog bevestigt.
     @State private var confirmSwitch: StorageChoice?
     @State private var tipsReset = false
+    @Query(sort: \PlayGroup.createdAt) private var groups: [PlayGroup]
+    @Environment(\.openSamen) private var openSamen
+    @Environment(\.leaveMatchScreens) private var leaveMatchScreens
+    /// De speelgroep waarvan het ontkoppelen nog bevestigd moet worden.
+    @State private var unlinking: UUID?
+    @State private var groupMessage: String?
 
     var body: some View {
         ModalPanel(title: "Instellingen", width: 620, onClose: onClose) {
@@ -38,6 +44,7 @@ struct SettingsPanel: View {
                     statsSection
                     cloudSection
                     storageSection
+                    groupsSection
                     searchSection
                     helpSection
                     aboutSection
@@ -290,6 +297,114 @@ struct SettingsPanel: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 14)
         }
+    }
+
+    // MARK: - Speelgroepen
+
+    private var groupsSection: some View {
+        section("Speelgroepen",
+                note: "Houd je ook scores bij met familie of vrienden in hun eigen Scoreblok? Koppel jullie met een QR-code en voeg samen wat jullie samen speelden. Er gaat niets via internet.") {
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(groups) { group in
+                    Hairline()
+                    if unlinking == group.id {
+                        unlinkConfirmation(group)
+                    } else {
+                        groupRow(group)
+                    }
+                }
+                if !groups.isEmpty { Hairline() }
+                if let groupMessage {
+                    Text(groupMessage)
+                        .font(M.font(12.5, .semiBold))
+                        .foregroundStyle(M.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 12)
+                }
+                HStack {
+                    SolidButton(title: "Samen bijwerken") {
+                        onClose()
+                        openSamen()
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+            }
+        }
+    }
+
+    private func groupRow(_ group: PlayGroup) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(group.name)
+                    .font(M.font(15, .semiBold))
+                    .foregroundStyle(M.ink)
+                    .lineLimit(1)
+                Text(groupDetail(group))
+                    .font(M.font(11.5, .regular))
+                    .foregroundStyle(M.inkAlpha(0.55))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            OutlineButton(title: "Ontkoppelen") {
+                groupMessage = nil
+                unlinking = group.id
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .frame(minHeight: 64)
+    }
+
+    private func groupDetail(_ group: PlayGroup) -> String {
+        let synced = group.lastSyncAt
+            .map { "bijgewerkt \($0.formatted(.dateTime.day().month(.abbreviated)))" }
+            ?? "nog niet bijgewerkt"
+        return "\(group.memberIDs.count) spelers · \(group.imported.count) potjes binnengekomen · \(synced)"
+    }
+
+    private func unlinkConfirmation(_ group: PlayGroup) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("\(group.name) ontkoppelen")
+                .font(M.font(15, .extraBold))
+                .foregroundStyle(M.ink)
+            Text("De koppeling verdwijnt. Kies of de potjes die via deze groep binnenkwamen blijven staan. Potjes die je sindsdien aanpaste blijven altijd, en vooraf maakt de app een reservekopie.")
+                .font(M.font(12.5, .regular))
+                .foregroundStyle(M.inkAlpha(0.7))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) { unlinkButtons(group) }
+                VStack(alignment: .leading, spacing: 10) { unlinkButtons(group) }
+            }
+        }
+        .padding(14)
+        .overlay(Rectangle().stroke(M.ink, lineWidth: 1.5))
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    @ViewBuilder
+    private func unlinkButtons(_ group: PlayGroup) -> some View {
+        OutlineButton(title: "Potjes laten staan") { unlink(group, removeMatches: false) }
+        SolidButton(title: "Ook potjes weghalen", fill: M.ink) { unlink(group, removeMatches: true) }
+        OutlineButton(title: "Annuleren") { unlinking = nil }
+    }
+
+    private func unlink(_ group: PlayGroup, removeMatches: Bool) {
+        let name = group.name
+        if removeMatches { leaveMatchScreens() }
+        do {
+            let removed = try SamenExchange.unlink(group, removeMatches: removeMatches, context: context)
+            groupMessage = removeMatches
+                ? "\(name) ontkoppeld en \(removed) potjes weggehaald."
+                : "\(name) ontkoppeld. De potjes blijven staan."
+        } catch {
+            groupMessage = "Ontkoppelen lukte niet: \(error.localizedDescription)"
+        }
+        unlinking = nil
     }
 
     // MARK: - Uitleg

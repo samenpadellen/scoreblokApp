@@ -8,19 +8,31 @@ struct StatsScreen: View {
 
     @State private var period: StatsPeriod = .preferred
     @State private var gameFilter: String? = nil
+    @Query(sort: \PlayGroup.createdAt) private var groups: [PlayGroup]
+    /// Alleen potjes waarin uitsluitend leden van deze speelgroep speelden.
+    @State private var groupFilter: UUID? = nil
+
+    private var groupLabel: String {
+        groups.first { $0.id == groupFilter }?.name ?? "Alle potjes"
+    }
+
+    private func inGroup(_ matches: [Match]) -> [Match] {
+        guard let groupFilter, let group = groups.first(where: { $0.id == groupFilter }) else { return matches }
+        return SamenExchange.matches(matches, in: group)
+    }
     @Environment(\.isNarrow) private var isNarrow
     @Environment(\.isCompact) private var isCompact
 
     private var me: Player? { players.first(where: \.isMe) ?? players.first }
 
     private var scoped: [Match] {
-        let base = StatsEngine.matches(allMatches, in: period)
+        let base = inGroup(StatsEngine.matches(allMatches, in: period))
         guard let gameFilter else { return base }
         return base.filter { $0.gameName == gameFilter }
     }
 
     private var previous: [Match] {
-        let base = StatsEngine.previousMatches(allMatches, in: period)
+        let base = inGroup(StatsEngine.previousMatches(allMatches, in: period))
         guard let gameFilter else { return base }
         return base.filter { $0.gameName == gameFilter }
     }
@@ -128,6 +140,30 @@ struct StatsScreen: View {
                     .contentShape(.rect)
                 }
                 .menuStyle(.borderlessButton)
+                if !groups.isEmpty {
+                    Hairline()
+                    Menu {
+                        Button("Alle potjes") { groupFilter = nil }
+                        ForEach(groups) { group in
+                            Button(group.name) { groupFilter = group.id }
+                        }
+                    } label: {
+                        HStack {
+                            Text("Speelgroep")
+                                .font(M.font(12.5, .regular))
+                                .foregroundStyle(M.inkAlpha(0.55))
+                            Spacer(minLength: 8)
+                            Text("\(groupLabel) ▾")
+                                .font(M.font(12.5, .extraBold))
+                                .foregroundStyle(M.ink)
+                        }
+                        .padding(.horizontal, 20)
+                        .frame(minHeight: 44)
+                        .background(M.surface)
+                        .contentShape(.rect)
+                    }
+                    .menuStyle(.borderlessButton)
+                }
             }
         } else {
             wideFilterBar
@@ -164,6 +200,24 @@ struct StatsScreen: View {
             }
             .menuStyle(.borderlessButton)
             Rectangle().fill(M.hairline).frame(width: 1)
+
+            if !groups.isEmpty {
+                Menu {
+                    Button("Alle potjes") { groupFilter = nil }
+                    ForEach(groups) { group in
+                        Button(group.name) { groupFilter = group.id }
+                    }
+                } label: {
+                    Text("\(groupFilter == nil ? "Speelgroep" : groupLabel) ▾")
+                        .font(M.font(12.5, .semiBold))
+                        .foregroundStyle(groupFilter == nil ? M.inkAlpha(0.6) : M.ink)
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: 48)
+                        .background(M.surface)
+                }
+                .menuStyle(.borderlessButton)
+                Rectangle().fill(M.hairline).frame(width: 1)
+            }
 
             Spacer(minLength: 0)
             Text("Berekend, niet opgeslagen")

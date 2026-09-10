@@ -13,6 +13,15 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_scoreblok-sync._tcp</string>
+		<string>_scoreblok-sync._udp</string>
+	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Scoreblok gebruikt de camera alleen om de QR-code van een ander apparaat te scannen, zodat jullie potjes kunnen samenvoegen.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Scoreblok zoekt een apparaat in de buurt om potjes mee samen te voegen. Er gaat niets via internet.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
