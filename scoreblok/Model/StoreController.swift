@@ -69,7 +69,7 @@ final class StoreController {
             let other: StorageChoice = choice == .local ? .iCloud : .local
             if Storage.storeExists(for: other) {
                 if let document = try? Self.read(other) {
-                    try? Backup.archive(document, reason: "restant-\(other.rawValue)")
+                    _ = try? Backup.archive(document, reason: "restant-\(other.rawValue)")
                 }
                 removeLeftover(other)
             }
@@ -198,7 +198,7 @@ final class StoreController {
     /// losgelaten. Lukt dat niet binnen tien seconden, dan neemt de app de
     /// oude opslag weer in gebruik (als die is opgegeven) en meldt `false`.
     private func release(fallback: StorageChoice?) async -> Bool {
-        weak var previous = container
+        weak let previous = container
         container = nil
         reroute = nil
         cloud.start(containerIsCloud: false)

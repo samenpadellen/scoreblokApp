@@ -19,7 +19,13 @@
 		<string>_scoreblok-sync._udp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
-	<string>Scoreblok gebruikt de camera alleen om de QR-code van een ander apparaat te scannen, zodat jullie potjes kunnen samenvoegen.</string>
+	<string>Scoreblok gebruikt de camera voor een profielfoto van een speler, en om de QR-code van een ander apparaat te scannen zodat jullie potjes kunnen samenvoegen.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>nl.scoreblok.app.potje</string>
+	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Scoreblok zoekt een apparaat in de buurt om potjes mee samen te voegen. Er gaat niets via internet.</string>
 	<key>UIBackgroundModes</key>

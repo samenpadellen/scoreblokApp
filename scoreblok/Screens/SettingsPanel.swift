@@ -17,6 +17,8 @@ struct SettingsPanel: View {
     @AppStorage(SettingsKey.showAbandoned) private var showAbandoned = true
     @AppStorage(SettingsKey.spotlight) private var spotlightEnabled = true
     @AppStorage(SettingsKey.statsPeriod) private var statsPeriod = StatsPeriod.days90.rawValue
+    @AppStorage(SettingsKey.liveActivity) private var liveActivity = true
+    @AppStorage(SettingsKey.matchReport) private var matchReport = true
 
     @State private var backupURL: URL?
     @State private var cloud = CloudStatus.shared
@@ -103,6 +105,27 @@ struct SettingsPanel: View {
                 HardToggle(isOn: $showAbandoned)
             }
             Hairline()
+            RuleRow(title: "Stand op het toegangsscherm",
+                    hint: "Het lopende potje als Live Activity, ook in het Dynamic Island. Na afloop blijft de eindstand even staan.",
+                    minHeight: 72) {
+                HardToggle(isOn: $liveActivity)
+            }
+            Hairline()
+            if MatchReporter.isAvailable {
+                RuleRow(title: "Verslag na afloop",
+                        hint: "Apple Intelligence schrijft op dit apparaat een kort verslag onder de eindstand. Er gaat niets naar internet.",
+                        minHeight: 72) {
+                    HardToggle(isOn: $matchReport)
+                }
+                Hairline()
+            }
+        }
+        .onChange(of: liveActivity) { _, on in
+            if on {
+                SnapshotWriter.update(from: matches, players: players)
+            } else {
+                LiveScore.endAll()
+            }
         }
     }
 
@@ -501,17 +524,17 @@ struct SettingsPanel: View {
                                         tint: Color = M.inkAlpha(0.5),
                                         @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            SectionLabel(title, tint: tint)
-                .padding(EdgeInsets(top: 18, leading: 20, bottom: note == nil ? 10 : 6, trailing: 20))
+            SectionHeader(title, insets: EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20),
+                          tint: tint == M.red ? M.red : M.ink)
             if let note {
                 Text(note)
                     .font(M.font(12, .regular))
                     .foregroundStyle(M.inkAlpha(0.55))
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(EdgeInsets(top: 0, leading: 20, bottom: 12, trailing: 20))
+                    .padding(EdgeInsets(top: 10, leading: 20, bottom: 12, trailing: 20))
+                Hairline()
             }
-            Hairline()
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)

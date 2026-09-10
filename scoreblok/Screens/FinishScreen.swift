@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 import SwiftData
 
@@ -15,12 +16,33 @@ struct FinishScreen: View {
 
     private var standings: [Standing] { match.standings }
     @State private var scorecardURL: URL?
+    /// Eén felicitatie-trilling zodra de eindstand in beeld is.
+    @State private var celebrated = false
+    @State private var reporter = MatchReporter()
+    @AppStorage(SettingsKey.matchReport) private var reportEnabled = true
+    @AppStorage(SettingsKey.reviewAskedAt) private var reviewAskedAt = 0
+    @Environment(\.requestReview) private var requestReview
+
+    private var showsReport: Bool {
+        reportEnabled && match.counts && MatchReporter.isAvailable && reporter.state != .failed
+    }
+
+    private var playedRounds: Int {
+        match.orderedRounds.filter { !$0.entries.isEmpty }.count
+    }
+
+    private var showsProgress: Bool {
+        (match.mode == .roundsCumulative || match.mode == .elimination) && playedRounds >= 2
+    }
     @Environment(\.isCompact) private var isCompact
 
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
                 header
+                if showsReport {
+                    reportBlock
+                }
                 HeavyRule()
                 podium
                 HeavyRule()
@@ -29,11 +51,25 @@ struct FinishScreen: View {
                     HeavyRule()
                 }
                 actions
+                if showsProgress {
+                    HeavyRule()
+                    progressBlock
+                }
             }
         }
         .task(id: match.id) {
             scorecardURL = ScorecardExport.pdf(for: match)
+            if reportEnabled && match.counts && MatchReporter.isAvailable {
+                await reporter.write(for: match)
+            }
         }
+        .task(id: match.id) { await askForReviewIfDue() }
+        .onAppear {
+            if match.counts { celebrated = true }
+            // Rondt de Live Activity af met de eindstand.
+            SnapshotWriter.update(from: allMatches)
+        }
+        .sensoryFeedback(.success, trigger: celebrated)
     }
 
     // MARK: - Kop
@@ -83,6 +119,77 @@ struct FinishScreen: View {
         return parts.joined(separator: " · ")
     }
 
+    // MARK: - Verslag
+
+    private var reportBlock: some View {
+        HStack(alignment: .top, spacing: 0) {
+            Rectangle().fill(M.red).frame(width: M.activeEdge)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("VERSLAG")
+                        .font(M.font(10, .extraBold))
+                        .tracking(em: 0.14, size: 10)
+                        .foregroundStyle(M.red)
+                    Spacer(minLength: 8)
+                    if reporter.state == .done {
+                        Button("Nog een versie") {
+                            Task { await reporter.write(for: match, again: true) }
+                        }
+                        .font(M.font(11.5, .extraBold))
+                        .foregroundStyle(M.inkAlpha(0.6))
+                        .buttonStyle(PressableStyle(scale: 0.96, shade: 0))
+                    }
+                }
+                ZStack(alignment: .topLeading) {
+                    Text(reporter.text.isEmpty ? " " : reporter.text)
+                        .font(M.font(isCompact ? 15.5 : 17, .semiBold))
+                        .foregroundStyle(M.ink)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if reporter.text.isEmpty {
+                        Text("Het verslag wordt geschreven…")
+                            .font(M.font(isCompact ? 15.5 : 17, .regular))
+                            .foregroundStyle(M.inkAlpha(0.4))
+                            .phaseAnimator([0.4, 1]) { view, phase in view.opacity(phase) }
+                    }
+                }
+                Text("Geschreven door Apple Intelligence, op dit apparaat")
+                    .font(M.font(11, .regular))
+                    .foregroundStyle(M.inkAlpha(0.45))
+            }
+            .padding(EdgeInsets(top: 14, leading: isCompact ? 17 : 25,
+                                bottom: 16, trailing: isCompact ? 20 : 28))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(M.surface)
+        .overlay(alignment: .top) { Hairline() }
+        .transition(.opacity)
+    }
+
+    // MARK: - Verloop
+
+    private var progressBlock: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionHeader("Verloop per ronde", insets: EdgeInsets(top: 16, leading: isCompact ? 20 : 28, bottom: 10, trailing: isCompact ? 20 : 28))
+            MatchProgressChart(match: match)
+                .frame(height: isCompact ? 200 : 240)
+                .padding(EdgeInsets(top: 18, leading: isCompact ? 20 : 28, bottom: 20, trailing: isCompact ? 12 : 20))
+        }
+    }
+
+    /// Na het vijfde, vijfentwintigste en vijfenzeventigste potje: dan weet je
+    /// wat je van de app vindt. Het systeem bepaalt zelf of het echt vraagt.
+    private func askForReviewIfDue() async {
+        guard match.counts else { return }
+        let counted = allMatches.filter(\.counts).count
+        guard [5, 25, 75].contains(counted), reviewAskedAt < counted else { return }
+        try? await Task.sleep(for: .seconds(2.5))
+        guard !Task.isCancelled else { return }
+        reviewAskedAt = counted
+        requestReview()
+    }
+
     // MARK: - Vrijgespeeld
 
     private var unlockBanner: some View {
@@ -123,10 +230,7 @@ struct FinishScreen: View {
                 HStack(alignment: .bottom, spacing: 0) { podiumColumns }
                     .padding(EdgeInsets(top: 22, leading: 20, bottom: 0, trailing: 20))
                 HeavyRule().padding(.top, 22)
-                SectionLabel("Volledige stand")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: 16, leading: 20, bottom: 10, trailing: 20))
-                Hairline()
+                SectionHeader("Volledige stand", insets: EdgeInsets(top: 16, leading: 20, bottom: 10, trailing: 20))
                 standingsList(padding: 20, minHeight: 60)
             }
         } else {
@@ -146,10 +250,7 @@ struct FinishScreen: View {
             .padding(EdgeInsets(top: 28, leading: 28, bottom: 0, trailing: 28))
 
             HeavyRule().padding(.top, 24)
-            SectionLabel("Volledige stand")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 16, leading: 28, bottom: 10, trailing: 28))
-            Hairline()
+            SectionHeader("Volledige stand", insets: EdgeInsets(top: 16, leading: 28, bottom: 10, trailing: 28))
             standingsList(padding: 28, minHeight: 50)
         }
     }
@@ -182,6 +283,8 @@ struct FinishScreen: View {
                     .frame(height: isCompact ? [120, 96, 76][index] : [168, 132, 104][index])
                     .padding(isCompact ? 12 : 14)
                     .background([M.red, M.ink, Color(hex: 0x605D5D)][index])
+                    // Het podium komt om de beurt omhoog, de winnaar eerst.
+                    .riseIn(delay: 0.08 + Double(index) * 0.09, from: .bottom)
                 }
                 .frame(maxWidth: isCompact ? .infinity : 190, alignment: .leading)
                 .padding(.trailing, isCompact ? 0 : 16)
@@ -256,7 +359,7 @@ struct FinishScreen: View {
             }
             .buttonStyle(.plain)
 
-            Rectangle().fill(M.paper.opacity(0.3)).frame(width: 1)
+            actionDivider(M.paper.opacity(0.3))
 
             Button { router.screen = .stats } label: {
                 Text("Naar statistieken")
@@ -269,7 +372,7 @@ struct FinishScreen: View {
             }
             .buttonStyle(.plain)
 
-            Rectangle().fill(M.hairline).frame(width: 1)
+            actionDivider(M.hairline)
 
             if let scorecardURL {
                 ShareLink(item: scorecardURL) {
@@ -282,7 +385,7 @@ struct FinishScreen: View {
                         .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                Rectangle().fill(M.hairline).frame(width: 1)
+                actionDivider(M.hairline)
             }
 
             Button { router.screen = .play } label: {
@@ -295,6 +398,16 @@ struct FinishScreen: View {
                     .contentShape(.rect)
             }
             .buttonStyle(.plain)
+        }
+    }
+
+    /// Naast elkaar een verticale lijn; onder elkaar een haarlijn.
+    @ViewBuilder
+    private func actionDivider(_ color: Color) -> some View {
+        if isCompact {
+            Hairline()
+        } else {
+            Rectangle().fill(color).frame(width: 1)
         }
     }
 

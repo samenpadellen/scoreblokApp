@@ -6,6 +6,7 @@ import SwiftUI
 /// Wat iCloud werkelijk doet. Dat een container opengaat zegt niets: SwiftData
 /// zet de winkel ook op zonder ingelogd account en synchroniseert dan gewoon
 /// niet. Daarom kijken we naar de accountstatus én naar de synchronisatie zelf.
+@MainActor
 @Observable
 final class CloudStatus {
 
@@ -97,7 +98,7 @@ final class CloudStatus {
         // Uitloggen of van account wisselen merken we zonder herstart.
         observers.append(NotificationCenter.default.addObserver(
             forName: .CKAccountChanged, object: nil, queue: .main) { [weak self] _ in
-                Task { @MainActor in self?.refresh() }
+                Task { @MainActor [weak self] in self?.refresh() }
             })
 
         // De echte synchronisatie: opzetten, ophalen en wegschrijven.
@@ -108,7 +109,7 @@ final class CloudStatus {
                     NSPersistentCloudKitContainer.eventNotificationUserInfoKey
                 ] as? NSPersistentCloudKitContainer.Event,
                       event.endDate != nil else { return }
-                Task { @MainActor in self?.record(event) }
+                Task { @MainActor [weak self] in self?.record(event) }
             })
     }
 

@@ -123,7 +123,7 @@ struct StorageChoiceView: View {
 
         return Button {
             guard available else { return }
-            selection = choice
+            withAnimation(M.Motion.quick) { selection = choice }
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {

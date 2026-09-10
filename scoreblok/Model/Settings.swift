@@ -16,6 +16,12 @@ enum SettingsKey {
     static let onboarded = "instelling.rondleidingGezien"
     /// Staat er een verzoek open om de tips weer te tonen?
     static let tipsReset = "instelling.tipsHerstellen"
+    /// De stand van het lopende potje op het toegangsscherm en in het Dynamic Island.
+    static let liveActivity = "instelling.liveActivity"
+    /// Een kort verslag van Apple Intelligence onder de eindstand.
+    static let matchReport = "instelling.verslag"
+    /// Bij welk aantal potjes er voor het laatst om een beoordeling is gevraagd.
+    static let reviewAskedAt = "instelling.beoordelingGevraagd"
 }
 
 extension StatsPeriod {

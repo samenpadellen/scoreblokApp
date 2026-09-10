@@ -24,11 +24,13 @@ struct CompactBoardScreen: View {
     private var seats: [Player] { match.orderedPlayers }
     private var standings: [Standing] { match.standings }
     private var leaderID: UUID? { standings.first?.player.id }
+    private var accent: GameAccent { GameAccent.of(match.gameName) }
 
     var body: some View {
         VStack(spacing: 0) {
             toolbar
             HeavyRule()
+            Rectangle().fill(accent.base).frame(height: 3)
             roundHeader
             Hairline()
             ScrollView {
@@ -140,7 +142,7 @@ struct CompactBoardScreen: View {
                             .lineLimit(1)
                         if player.id == leaderID,
                            match.rounds.contains(where: { !$0.entries.isEmpty }) {
-                            Tag(text: "Leidt", background: M.red, size: 9)
+                            Tag(text: "Leidt", background: accent.onPaper, size: 9)
                         }
                     }
                     Text(subtitle(for: player, standing: standing))
@@ -159,6 +161,8 @@ struct CompactBoardScreen: View {
                         .font(isSelected ? M.font(20, .extraBold)
                               : (value == nil ? M.font(16, .regular) : M.font(19, .semiBold)))
                         .foregroundStyle(value == nil && !isSelected ? M.inkAlpha(0.28) : M.ink)
+                        .contentTransition(.numericText())
+                        .animation(M.Motion.quick, value: value)
                         .frame(minWidth: 44, alignment: .trailing)
                 }
 
@@ -173,6 +177,8 @@ struct CompactBoardScreen: View {
                         .font(M.font(24, .extraBold))
                         .tracking(em: -0.02, size: 24)
                         .foregroundStyle(M.ink)
+                        .contentTransition(.numericText(value: Double(match.total(for: player))))
+                        .animation(M.Motion.settle, value: match.total(for: player))
                 }
                 .frame(minWidth: 52, alignment: .trailing)
             }
@@ -180,9 +186,10 @@ struct CompactBoardScreen: View {
             .frame(minHeight: 72)
             .background(isSelected ? M.redWash : .clear)
             .overlay { if isSelected { Rectangle().stroke(M.red, lineWidth: 2) } }
+            .animation(M.Motion.quick, value: isSelected)
             .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle(scale: 0.99))
         .accessibilityLabel(accessibility(player: player, value: value))
     }
 
@@ -218,10 +225,7 @@ struct CompactBoardScreen: View {
     private var earlierRounds: some View {
         let played = match.orderedRounds.filter { !$0.entries.isEmpty }
         if !played.isEmpty {
-            SectionLabel("Eerdere rondes")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 14, leading: 20, bottom: 8, trailing: 20))
-            Hairline()
+            SectionHeader("Eerdere rondes", insets: EdgeInsets(top: 14, leading: 20, bottom: 8, trailing: 20))
 
             ScrollView(.horizontal, showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -310,7 +314,7 @@ struct CompactBoardScreen: View {
                 .background(isConfirm ? M.red : signOn ? M.ink : isNumber ? M.surface : M.paperKey)
                 .overlay(Rectangle().stroke(isConfirm ? M.red : M.inkAlpha(0.35), lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle(scale: 0.94))
         .disabled(signDisabled)
         .accessibilityLabel(isConfirm ? "Bevestigen"
                             : label == "⌫" ? "Wissen"

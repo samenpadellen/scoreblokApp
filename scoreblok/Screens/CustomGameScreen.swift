@@ -226,10 +226,7 @@ struct CustomGameScreen: View {
 
     private var modeBlock: some View {
         VStack(spacing: 0) {
-            SectionLabel("Scoremodus — de kern van het sjabloon")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
-            Hairline()
+            SectionHeader("Scoremodus — de kern van het sjabloon", insets: EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
 
             ForEach(ScoringMode.allCases) { option in
                 RowButton(isActive: mode == option, minHeight: 66) {

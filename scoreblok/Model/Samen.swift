@@ -91,6 +91,8 @@ struct SamenPayload: Codable {
     /// ontvanger → id bij de afzender. Daarmee koppelt de ontvanger terug
     /// zonder te hoeven vragen.
     var links: [String: String]
+    /// Profielfoto's van de leden. Ontbreekt bij een apparaat met een oudere versie.
+    var photos: [BackupDocument.PhotoData]? = nil
 }
 
 /// Verpakt een pakket in kleine, genummerde stukken, zodat ook een heel
@@ -207,8 +209,9 @@ enum SamenExchange {
         for (remote, local) in group?.links ?? [:] where members.contains(local) {
             links[remote.uuidString] = local.uuidString
         }
+        let photos = document.photos?.filter { members.contains($0.playerID) }
         return SamenPayload(groupID: groupID, senderName: senderName, members: memberData,
-                            matches: shared, links: links)
+                            matches: shared, links: links, photos: photos)
     }
 
     /// Voorstel wie wie is: hetzelfde id, een eerdere koppeling, de koppeling
@@ -300,6 +303,17 @@ enum SamenExchange {
         let matches = payload.matches.map { remap($0, with: map) }
         let document = BackupDocument(players: newPlayers, templates: [], matches: matches)
         let result = try Backup.restore(document, into: context)
+
+        // Foto's alleen voor wie hier nog geen foto heeft.
+        if let photos = payload.photos {
+            let moved = photos.compactMap { photo -> BackupDocument.PhotoData? in
+                guard let local = map[photo.playerID.uuidString].flatMap(UUID.init(uuidString:)) else { return nil }
+                var copy = photo
+                copy.playerID = local
+                return copy
+            }
+            Backup.restorePhotos(moved, onlyWhenMissing: true, into: context)
+        }
 
         let groups = (try? context.fetch(FetchDescriptor<PlayGroup>())) ?? []
         let group = groups.first(where: { $0.id == groupID && !$0.isDeleted }) ?? {

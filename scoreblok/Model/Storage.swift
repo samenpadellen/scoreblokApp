@@ -25,10 +25,23 @@ enum SchemaV2: VersionedSchema {
     }
 }
 
+/// Versie 3: profielfoto's erbij, weer als eigen tabel. De speler zelf
+/// verandert niet, zodat versie 1 en 2 hun vingerafdruk houden en de
+/// migratie licht blijft.
+enum SchemaV3: VersionedSchema {
+    static var versionIdentifier: Schema.Version { Schema.Version(3, 0, 0) }
+
+    static var models: [any PersistentModel.Type] {
+        [Player.self, GameTemplate.self, Match.self,
+         MatchRound.self, ScoreEntry.self, ScoreCard.self, PlayGroup.self, PlayerPhoto.self]
+    }
+}
+
 enum ScoreblokMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self] }
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self, SchemaV2.self, SchemaV3.self] }
     static var stages: [MigrationStage] {
-        [.lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self)]
+        [.lightweight(fromVersion: SchemaV1.self, toVersion: SchemaV2.self),
+         .lightweight(fromVersion: SchemaV2.self, toVersion: SchemaV3.self)]
     }
 }
 
@@ -98,7 +111,7 @@ enum Storage {
     /// Wanneer er voor het laatst met zekerheid is weggeschreven.
     private(set) static var lastSaved: Date?
 
-    static let schema = Schema(versionedSchema: SchemaV2.self)
+    static let schema = Schema(versionedSchema: SchemaV3.self)
 
     /// Moet letterlijk overeenkomen met de container in het Developer-portaal
     /// en met de entitlements.

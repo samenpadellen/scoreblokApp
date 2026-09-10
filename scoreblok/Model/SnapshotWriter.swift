@@ -69,8 +69,12 @@ enum SnapshotWriter {
                 startedAt: match.startedAt,
                 lastPlayed: match.lastPlayedAt,
                 standings: entries,
-                playedRounds: Array(rounds))
+                playedRounds: Array(rounds),
+                accentHex: GameAccent.of(match.gameName).onInkHex)
         }
+
+        // Toegangsscherm en Dynamic Island volgen dezelfde stand.
+        LiveScore.sync(open: open, matches: all)
 
         let snapshot = WidgetSnapshot(
             open: open,
@@ -101,6 +105,7 @@ enum SnapshotWriter {
     private static func reload() {
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         #endif
     }
 }

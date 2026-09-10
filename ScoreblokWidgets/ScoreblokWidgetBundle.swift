@@ -5,5 +5,8 @@ import WidgetKit
 struct ScoreblokWidgetBundle: WidgetBundle {
     var body: some Widget {
         StandingsWidget()
+        LiveScoreActivity()
+        NewMatchControl()
+        StandingsControl()
     }
 }

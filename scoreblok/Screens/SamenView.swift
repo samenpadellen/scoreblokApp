@@ -36,6 +36,14 @@ struct SamenView: View {
         .onChange(of: model?.receivedCount ?? 0) { _, count in
             if count > 0 { prepareReview() }
         }
+        .sensoryFeedback(trigger: model?.step) { _, step in
+            switch step {
+            case .connected: .impact(weight: .medium)
+            case .done: .success
+            case .failed: .error
+            default: nil
+            }
+        }
         .sheet(isPresented: $scanning) { scannerSheet }
     }
 
@@ -92,6 +100,7 @@ struct SamenView: View {
                 membersBlock(model)
             }
         }
+        .animation(M.Motion.settle, value: model.step)
     }
 
     // MARK: - Verbinden
@@ -120,6 +129,7 @@ struct SamenView: View {
                 HStack(spacing: 10) {
                     if model.peerName != nil, !isFailed(model) {
                         Rectangle().fill(M.red).frame(width: 10, height: 10)
+                            .transition(.scale.combined(with: .opacity))
                     } else if !isFailed(model), !isDone(model) {
                         ProgressView().tint(M.ink)
                     }

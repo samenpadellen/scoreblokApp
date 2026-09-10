@@ -15,6 +15,7 @@ struct ScorecardScreen: View {
     @Environment(\.isCompact) private var isCompact
 
     private var spec: ScorecardSpec { match.scorecard ?? .empty }
+    private var accent: GameAccent { GameAccent.of(match.gameName) }
     private var seats: [Player] { match.orderedPlayers }
     private var current: Player? {
         seats.first { $0.id == selectedPlayerID } ?? seats.first
@@ -34,6 +35,7 @@ struct ScorecardScreen: View {
             toolbar
                 .fixedSize(horizontal: false, vertical: true)
             HeavyRule()
+            Rectangle().fill(accent.base).frame(height: 3)
             ScrollView {
                 VStack(spacing: 0) {
                     if isCompact { totalBlock }
@@ -138,10 +140,7 @@ struct ScorecardScreen: View {
 
     private var columnsBlock: some View {
         VStack(spacing: 0) {
-            SectionLabel(spec.columnsTitle)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
-            Hairline()
+            SectionHeader(spec.columnsTitle, insets: EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
 
             let wide = spec.columns.count > 8 ? min(spec.columns.count, 15) : max(spec.columns.count, 1)
             let perRow = isNarrow ? min(wide, 8) : wide
@@ -213,10 +212,7 @@ struct ScorecardScreen: View {
         AdaptiveSplit {
             VStack(spacing: 0) {
                 if !spec.bonuses.isEmpty {
-                    SectionLabel(spec.bonusesTitle)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
-                    Hairline()
+                    SectionHeader(spec.bonusesTitle, insets: EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
                     ForEach(spec.bonuses) { bonus in
                         bonusRow(bonus)
                         Hairline()
@@ -231,10 +227,7 @@ struct ScorecardScreen: View {
         } trailing: {
             VStack(spacing: 0) {
                 if spec.hasPenalty {
-                    SectionLabel(spec.penaltyTitle ?? "")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
-                    Hairline()
+                    SectionHeader(spec.penaltyTitle ?? "", insets: EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
                     penaltyRow
                     Hairline()
                 }
@@ -269,10 +262,7 @@ struct ScorecardScreen: View {
     private func sectionBonusRow(_ rule: SectionBonus) -> some View {
         let earned = (card?.sectionBonusPoints(spec: spec) ?? 0) > 0
         return VStack(spacing: 0) {
-            SectionLabel("Sectiebonus")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
-            Hairline()
+            SectionHeader("Sectiebonus", insets: EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
             HStack(spacing: 14) {
                 HardCheckbox(isOn: earned)
                 Text(rule.label)

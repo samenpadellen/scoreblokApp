@@ -63,15 +63,15 @@ struct CupboardScreen: View {
     }
 
     private func section(_ title: String, note: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            SectionLabel(title)
+        VStack(alignment: .leading, spacing: 0) {
+            SectionHeader(title, insets: EdgeInsets(top: 0, leading: padding, bottom: 0, trailing: padding))
             Text(note)
                 .font(M.font(12, .regular))
                 .foregroundStyle(M.inkAlpha(0.55))
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(EdgeInsets(top: 10, leading: padding, bottom: 10, trailing: padding))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(EdgeInsets(top: 20, leading: padding, bottom: 10, trailing: padding))
         .overlay(alignment: .bottom) { Hairline() }
     }
 

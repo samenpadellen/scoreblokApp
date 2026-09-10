@@ -5,6 +5,7 @@ struct PlayerDetailScreen: View {
     @Bindable var player: Player
 
     @Environment(Router.self) private var router
+    @Environment(\.modelContext) private var context
     @Query private var players: [Player]
     @Query private var matches: [Match]
 
@@ -15,6 +16,8 @@ struct PlayerDetailScreen: View {
     @State private var editingLook = false
     @State private var draftAvatar = 0
     @State private var draftRamp = 0
+    @State private var draftPhoto: Data?
+    @State private var originalPhoto: Data?
     @Environment(\.isNarrow) private var isNarrow
 
     /// Tegen wie de balans loopt: normaal tegen jou, en als dit jouw eigen
@@ -40,17 +43,21 @@ struct PlayerDetailScreen: View {
     }
 
     private var lookPanel: some View {
-        ModalPanel(title: "Uiterlijk van \(player.name)",
-                   width: 480,
+        ModalPanel(title: "Foto en uiterlijk van \(player.name)",
+                   width: 520,
                    onClose: { editingLook = false }) {
             VStack(alignment: .leading, spacing: 18) {
-                AvatarPicker(avatarIndex: $draftAvatar, rampIndex: $draftRamp)
+                AvatarPicker(avatarIndex: $draftAvatar, rampIndex: $draftRamp,
+                             photo: $draftPhoto, name: player.name)
                 HStack(spacing: 10) {
                     Spacer()
                     OutlineButton(title: "Annuleer") { editingLook = false }
                     SolidButton(title: "Bewaar") {
                         player.avatarIndex = draftAvatar
                         player.rampIndex = draftRamp
+                        if draftPhoto != originalPhoto {
+                            PhotoBook.shared.setPhoto(draftPhoto, for: player.id, in: context)
+                        }
                         editingLook = false
                     }
                 }
@@ -63,11 +70,7 @@ struct PlayerDetailScreen: View {
         HStack(spacing: 16) {
             BackLink(title: "Spelers") { router.screen = .players }
             Spacer()
-            OutlineButton(title: "Uiterlijk") {
-                draftAvatar = player.avatarIndex
-                draftRamp = player.rampIndex
-                editingLook = true
-            }
+            OutlineButton(title: "Uiterlijk") { beginEditingLook() }
             OutlineButton(title: player.isArchived ? "Terughalen" : "Archiveren") {
                 player.isArchived.toggle()
             }
@@ -78,7 +81,11 @@ struct PlayerDetailScreen: View {
 
     private var header: some View {
         HStack(spacing: 18) {
-            PlayerMark(player: player, size: 64)
+            Button { beginEditingLook() } label: {
+                PlayerMark(player: player, size: 64)
+            }
+            .buttonStyle(PressableStyle(scale: 0.95))
+            .accessibilityHint("Foto en uiterlijk aanpassen")
             VStack(alignment: .leading, spacing: 8) {
                 Text(player.name)
                     .font(M.font(34, .extraBold))
@@ -92,6 +99,14 @@ struct PlayerDetailScreen: View {
         }
         .padding(.horizontal, 28)
         .padding(.vertical, 24)
+    }
+
+    private func beginEditingLook() {
+        draftAvatar = player.avatarIndex
+        draftRamp = player.rampIndex
+        originalPhoto = PhotoBook.shared.storedData(for: player.id, in: context)
+        draftPhoto = originalPhoto
+        editingLook = true
     }
 
     private var since: String {
@@ -127,8 +142,9 @@ struct PlayerDetailScreen: View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 0),
                             count: isNarrow ? 2 : items.count)
         return LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                FigureTile(label: item.0, value: item.1, sub: item.2, valueSize: 32, minHeight: 118)
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                FigureTile(label: item.0, value: item.1, sub: item.2, valueSize: 32, minHeight: 118,
+                           emphasis: index == 1)
                     .overlay(alignment: .trailing) {
                         Rectangle().fill(M.hairline).frame(width: 1)
                     }
@@ -140,10 +156,7 @@ struct PlayerDetailScreen: View {
     private var lower: some View {
         AdaptiveSplit {
             VStack(spacing: 0) {
-                SectionLabel(balanceTitle)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
-                Hairline()
+                SectionHeader(balanceTitle, insets: EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
 
                 if let counterpart {
                     let lines = StatsEngine.headToHead(player, versus: counterpart, in: counted)
@@ -174,10 +187,7 @@ struct PlayerDetailScreen: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         } trailing: {
             VStack(spacing: 0) {
-                SectionLabel("Laatste potjes")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
-                Hairline()
+                SectionHeader("Laatste potjes", insets: EdgeInsets(top: 18, leading: 24, bottom: 10, trailing: 24))
 
                 if results.isEmpty { note("Nog geen potjes gespeeld.") }
 

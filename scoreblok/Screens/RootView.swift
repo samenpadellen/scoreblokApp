@@ -1,3 +1,4 @@
+import AppIntents
 import SwiftUI
 import SwiftData
 
@@ -71,6 +72,8 @@ struct RootView: View {
     @State private var showingTour = false
     /// Samen bijwerken met iemand anders: open zolang dit niet nil is.
     @State private var samenRequest: SamenRequest?
+    /// Voor de actieve tab en zijbalkrij die naar hun nieuwe plek schuiven.
+    @Namespace private var navSpace
 
     /// De rondleiding staat bij de eerste start over alles heen, en is later
     /// terug te halen uit de instellingen.
@@ -95,8 +98,15 @@ struct RootView: View {
     var body: some View {
         layout
             .background(M.paper)
+            .background { PhotoBookSync() }
+            .background {
+                OpenMatchWatcher(id: openMatch?.id) {
+                    SnapshotWriter.update(from: matches, players: players)
+                }
+            }
+            .modifier(MatchHandoff(match: handoffMatch, onContinue: continueMatch))
             .environment(router)
-            .overlay { if showingSettings { SettingsPanel { showingSettings = false } } }
+            .modifier(SettingsHosting(isPresented: $showingSettings))
             .modifier(SamenHosting(request: $samenRequest,
                                    open: { showingSettings = false; samenRequest = .host },
                                    leave: leaveMatchScreens))
@@ -135,6 +145,7 @@ struct RootView: View {
                     AppTips.ready = onboarded
                     store.reroute = { map in reroute(map) }
                     BuiltInGames.seedIfNeeded(in: context)
+                    ScoreblokShortcuts.updateAppShortcutParameters()
                 },
                 onPendingGame: { id in
                     guard let template = templates.first(where: { $0.id == id }) else { return }
@@ -164,6 +175,11 @@ struct RootView: View {
                     }
                     // scoreblok://match/<uuid>, scoreblok://setup, of een
                     // Spotlight-treffer op id.
+                    if url.host() == "play" {
+                        showingSettings = false
+                        router.screen = .play
+                        return
+                    }
                     if url.host() == "setup" || url.lastPathComponent == "setup" {
                         if let template = templates.first { router.screen = .setup(template) }
                         return
@@ -176,6 +192,22 @@ struct RootView: View {
                     }
                 }
             ))
+    }
+
+    /// Het potje dat je nu bijhoudt, om op een ander apparaat verder te gaan.
+    private var handoffMatch: Match? {
+        switch router.screen {
+        case .board(let match), .card(let match): match.isOpen ? match : nil
+        default: nil
+        }
+    }
+
+    /// Verder op dit apparaat met het potje van een ander apparaat. Staat het
+    /// hier niet (lokale opslag), dan opent de app gewoon.
+    private func continueMatch(_ id: UUID) {
+        guard let match = matches.first(where: { $0.id == id }) else { return }
+        showingSettings = false
+        router.screen = match.mode == .scorecard ? .card(match) : .board(match)
     }
 
     /// Weg van een scherm dat één potje of speler toont, voordat die wordt
@@ -259,6 +291,8 @@ struct RootView: View {
     private var workspace: some View {
         VStack(spacing: 0) {
             content
+                .id(router.screen)
+                .transition(.opacity)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             if showsNowPlaying, let openMatch {
                 NowPlayingBar(match: openMatch) {
@@ -271,6 +305,7 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(M.paper)
         .animation(.snappy(duration: 0.22), value: showsNowPlaying)
+        .animation(M.Motion.quick, value: router.screen)
     }
 
     // MARK: - Strook bovenin, bij een smal venster
@@ -311,12 +346,18 @@ struct RootView: View {
                 ForEach(Array(tabs.enumerated()), id: \.element) { index, section in
                     let isActive = router.screen.section == section
                     Button {
-                        router.go(section)
+                        withAnimation(M.Motion.settle) { router.go(section) }
                     } label: {
                         VStack(spacing: 6) {
-                            Rectangle()
-                                .fill(isActive ? M.red : Color.clear)
-                                .frame(width: 16, height: 3)
+                            ZStack {
+                                Color.clear.frame(width: 16, height: 3)
+                                if isActive {
+                                    Rectangle()
+                                        .fill(M.red)
+                                        .frame(width: 16, height: 3)
+                                        .matchedGeometryEffect(id: "tab-streep", in: navSpace)
+                                }
+                            }
                             Text(section.rawValue)
                                 .font(M.font(11.5, isActive ? .extraBold : .semiBold))
                                 .tracking(em: 0.04, size: 11.5)
@@ -326,7 +367,13 @@ struct RootView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: 56)
-                        .background(isActive ? M.ink : Color.clear)
+                        .background {
+                            if isActive {
+                                Rectangle()
+                                    .fill(M.ink)
+                                    .matchedGeometryEffect(id: "tab-vlak", in: navSpace)
+                            }
+                        }
                         .overlay(alignment: .trailing) {
                             if index < tabs.count - 1 {
                                 Rectangle().fill(M.hairline).frame(width: 1)
@@ -337,6 +384,7 @@ struct RootView: View {
                     .buttonStyle(.plain)
                 }
             }
+            .sensoryFeedback(.selection, trigger: router.screen.section)
             // Het systeem trekt de achtergrond van het onderste vlak door tot
             // onder de home-indicator. Deze strook zorgt dat dat papier is en
             // niet de inkt van het actieve tabblad.
@@ -400,7 +448,7 @@ struct RootView: View {
     private func navRow(_ section: NavSection, compact: Bool = false) -> some View {
         let isActive = router.screen.section == section
         return Button {
-            router.go(section)
+            withAnimation(M.Motion.settle) { router.go(section) }
         } label: {
             HStack(spacing: 0) {
                 Text(section.rawValue)
@@ -417,7 +465,13 @@ struct RootView: View {
             .padding(.horizontal, compact ? 16 : 20)
             .frame(minHeight: 48)
             .frame(maxWidth: .infinity)
-            .background(isActive ? M.ink : .clear)
+            .background {
+                if isActive {
+                    Rectangle()
+                        .fill(M.ink)
+                        .matchedGeometryEffect(id: "zijbalk-vlak", in: navSpace)
+                }
+            }
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -458,6 +512,74 @@ struct RootView: View {
     }
 }
 
+/// Werkt widgets en Live Activity bij zodra het lopende potje verandert:
+/// afgerond, afgebroken of een nieuw potje.
+private struct OpenMatchWatcher: View {
+    let id: UUID?
+    let onChange: () -> Void
+
+    var body: some View {
+        Color.clear.onChange(of: id) { onChange() }
+    }
+}
+
+/// Handoff: het potje dat je op de iPad bijhoudt, gaat op je iPhone verder,
+/// en andersom. Werkt als beide apparaten op iCloud staan.
+private struct MatchHandoff: ViewModifier {
+    static let activityType = "nl.scoreblok.app.potje"
+
+    let match: Match?
+    let onContinue: (UUID) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .userActivity(Self.activityType, isActive: match != nil) { activity in
+                guard let match else { return }
+                activity.title = "\(match.gameName) bijhouden"
+                activity.userInfo = ["potje": match.id.uuidString]
+                activity.targetContentIdentifier = match.id.uuidString
+                activity.isEligibleForHandoff = true
+            }
+            .onContinueUserActivity(Self.activityType) { activity in
+                guard let raw = activity.userInfo?["potje"] as? String,
+                      let id = UUID(uuidString: raw) else { return }
+                onContinue(id)
+            }
+    }
+}
+
+/// Houdt de foto's in het geheugen gelijk met de database: na eigen
+/// wijzigingen, na ophalen uit iCloud en na terugzetten.
+private struct PhotoBookSync: View {
+    @Query private var photos: [PlayerPhoto]
+
+    private var signature: [String] {
+        photos.map { "\($0.id.uuidString)-\($0.updatedAt.timeIntervalSince1970)" }.sorted()
+    }
+
+    var body: some View {
+        Color.clear
+            .onAppear { PhotoBook.shared.reload(photos) }
+            .onChange(of: signature) { PhotoBook.shared.reload(photos) }
+    }
+}
+
+/// Instellingen bovenop alles, met een zachte entree.
+private struct SettingsHosting: ViewModifier {
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if isPresented {
+                    SettingsPanel { isPresented = false }
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                }
+            }
+            .animation(M.Motion.settle, value: isPresented)
+    }
+}
+
 /// Het samen-scherm bovenop alles, en de acties om het te openen. Los van het
 /// hoofdscherm, zodat de uitdrukking daar klein genoeg blijft.
 private struct SamenHosting: ViewModifier {
@@ -471,8 +593,10 @@ private struct SamenHosting: ViewModifier {
                 if let current = request {
                     SamenView(request: current) { request = nil }
                         .id(current.id)
+                        .transition(.opacity)
                 }
             }
+            .animation(M.Motion.settle, value: request?.id)
             .environment(\.openSamen, open)
             .environment(\.leaveMatchScreens, leave)
     }

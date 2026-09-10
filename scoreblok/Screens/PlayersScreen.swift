@@ -11,6 +11,7 @@ struct PlayersScreen: View {
     @State private var newName = ""
     @State private var newAvatar = 0
     @State private var newRamp = 0
+    @State private var newPhoto: Data?
     @Environment(\.isNarrow) private var isNarrow
     @Environment(\.isCompact) private var isCompact
 
@@ -47,10 +48,7 @@ struct PlayersScreen: View {
                 }
 
                 if !archived.isEmpty {
-                    SectionLabel("Gearchiveerd")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(EdgeInsets(top: 22, leading: 28, bottom: 8, trailing: 28))
-                    Hairline()
+                    SectionHeader("Gearchiveerd", insets: EdgeInsets(top: 22, leading: 28, bottom: 8, trailing: 28))
                     ForEach(archived) { player in
                         RowButton(minHeight: 56) {
                             router.screen = .detail(player)
@@ -167,9 +165,9 @@ struct PlayersScreen: View {
                             .foregroundStyle(M.ink)
                             .lineLimit(1)
                         Text(player.isMe ? "DAT BEN JIJ" : "MEDESPELER")
-                            .font(M.font(9.5, .semiBold))
+                            .font(M.font(9.5, player.isMe ? .extraBold : .semiBold))
                             .tracking(em: 0.12, size: 9.5)
-                            .foregroundStyle(M.inkAlpha(0.5))
+                            .foregroundStyle(player.isMe ? M.red : M.inkAlpha(0.5))
                     }
                     Spacer(minLength: 0)
                 }
@@ -203,6 +201,7 @@ struct PlayersScreen: View {
     private func beginNewPlayer() {
         newName = ""
         newAvatar = Int.random(in: 0..<AvatarShape.count)
+        newPhoto = nil
         newRamp = players.count % M.playerRamp.count
         addingPlayer = true
     }
@@ -210,7 +209,8 @@ struct PlayersScreen: View {
     private var newPlayerPanel: some View {
         ModalPanel(title: "Nieuw profiel", onClose: { addingPlayer = false }) {
             VStack(alignment: .leading, spacing: 16) {
-                AvatarPicker(avatarIndex: $newAvatar, rampIndex: $newRamp)
+                AvatarPicker(avatarIndex: $newAvatar, rampIndex: $newRamp,
+                             photo: $newPhoto, name: newName)
                 HardTextField(placeholder: "Naam", text: $newName)
                 HStack(spacing: 10) {
                     Spacer()
@@ -219,10 +219,14 @@ struct PlayersScreen: View {
                                 enabled: !newName.trimmingCharacters(in: .whitespaces).isEmpty) {
                         let name = newName.trimmingCharacters(in: .whitespaces)
                         guard !name.isEmpty else { return }
-                        context.insert(Player(name: name,
-                                              rampIndex: newRamp,
-                                              avatarIndex: newAvatar,
-                                              isMe: players.isEmpty))
+                        let player = Player(name: name,
+                                            rampIndex: newRamp,
+                                            avatarIndex: newAvatar,
+                                            isMe: players.isEmpty)
+                        context.insert(player)
+                        if let newPhoto {
+                            PhotoBook.shared.setPhoto(newPhoto, for: player.id, in: context)
+                        }
                         addingPlayer = false
                     }
                 }

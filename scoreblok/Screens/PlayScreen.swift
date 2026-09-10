@@ -53,13 +53,7 @@ struct PlayScreen: View {
                     HeavyRule()
                 }
 
-                SectionLabel("Laatst gespeeld")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: isCompact ? 16 : 22,
-                                        leading: isCompact ? 20 : 28,
-                                        bottom: 8,
-                                        trailing: isCompact ? 20 : 28))
-                Hairline()
+                SectionHeader("Laatst gespeeld", insets: EdgeInsets(top: isCompact ? 16 : 22, leading: isCompact ? 20 : 28, bottom: 8, trailing: isCompact ? 20 : 28))
                 if isCompact {
                     ForEach(recent) { template in
                         phoneRow(template, prominent: true)
@@ -71,13 +65,7 @@ struct PlayScreen: View {
                     }
                 }
 
-                SectionLabel("Alle spellen")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(EdgeInsets(top: isCompact ? 16 : 22,
-                                        leading: isCompact ? 20 : 28,
-                                        bottom: 8,
-                                        trailing: isCompact ? 20 : 28))
-                Hairline()
+                SectionHeader("Alle spellen", insets: EdgeInsets(top: isCompact ? 16 : 22, leading: isCompact ? 20 : 28, bottom: 8, trailing: isCompact ? 20 : 28))
                 if isCompact {
                     ForEach(others) { template in
                         phoneRow(template, prominent: false)
@@ -135,7 +123,8 @@ struct PlayScreen: View {
     // MARK: - Doorgaan met een open potje
 
     private func resumeCard(_ match: Match) -> some View {
-        Button {
+        let accent = GameAccent.of(match.gameName)
+        return Button {
             router.screen = match.mode == .scorecard ? .card(match) : .board(match)
         } label: {
             AnyLayout(isNarrow ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
@@ -144,7 +133,7 @@ struct PlayScreen: View {
                     Text("POTJE OPEN — GA VERDER")
                         .font(M.font(10, .semiBold))
                         .tracking(em: 0.14, size: 10)
-                        .foregroundStyle(Color(hex: 0xFF9783))
+                        .foregroundStyle(accent.onInk)
                         .padding(.bottom, 10)
                     Text(match.gameName)
                         .font(M.font(26, .extraBold))
@@ -175,7 +164,7 @@ struct PlayScreen: View {
                             Text("\(standing.total)")
                                 .font(M.font(28, .extraBold))
                                 .tracking(em: -0.02, size: 28)
-                                .foregroundStyle(M.paper)
+                                .foregroundStyle(standing.rank == 1 ? accent.onInk : M.paper)
                         }
                         .frame(maxWidth: isNarrow ? .infinity : nil, alignment: .leading)
                         .frame(width: isNarrow ? nil : 104, alignment: .leading)
@@ -192,6 +181,11 @@ struct PlayScreen: View {
                 .padding(.bottom, isNarrow ? 8 : 0)
             }
             .background(M.ink)
+            // Het accent van het spel als brede rand: aan de kleur zie je al
+            // welk potje er openstaat.
+            .overlay(alignment: .leading) {
+                Rectangle().fill(accent.base).frame(width: 6)
+            }
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -221,7 +215,7 @@ struct PlayScreen: View {
 
     /// Compacte rij voor de overige open potjes.
     private func openRow(_ match: Match) -> some View {
-        RowButton(minHeight: 62) {
+        RowButton(minHeight: 62, edge: GameAccent.of(match.gameName).base) {
             router.screen = match.mode == .scorecard ? .card(match) : .board(match)
         } content: {
             HStack(spacing: 14) {
@@ -238,12 +232,15 @@ struct PlayScreen: View {
                 }
                 Spacer(minLength: 12)
                 HStack(spacing: 8) {
-                    ForEach(match.standings.prefix(5)) { standing in
+                    // Op de telefoon passen er niet meer dan twee naast de naam.
+                    ForEach(match.standings.prefix(isCompact ? 2 : 5)) { standing in
                         HStack(spacing: 7) {
                             PlayerMark(player: standing.player, size: 16)
                             Text("\(standing.total)")
                                 .font(M.font(11.5, .semiBold))
                                 .foregroundStyle(M.ink)
+                                .lineLimit(1)
+                                .fixedSize()
                         }
                         .padding(.horizontal, 9)
                         .padding(.vertical, 5)

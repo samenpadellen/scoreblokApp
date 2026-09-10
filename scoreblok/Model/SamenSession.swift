@@ -188,7 +188,7 @@ final class SamenModel {
     func start() {
         let link = SamenLink(displayName: deviceName, invite: invite)
         link.onEvent = { [weak self] event in
-            Task { @MainActor in self?.handle(event) }
+            Task { @MainActor [weak self] in self?.handle(event) }
         }
         self.link = link
         if role == .host { link.host() } else { link.join() }

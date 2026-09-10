@@ -45,6 +45,9 @@ struct WidgetSnapshot: Codable, Equatable {
         var standings: [Entry]
         /// De gespeelde rondes, in de volgorde van `standings`.
         var playedRounds: [Round]
+        /// Accentkleur van het spel, licht genoeg voor een donker vlak.
+        /// Ontbreekt in momentopnamen van oudere versies.
+        var accentHex: Int?
 
         struct Round: Codable, Equatable, Identifiable {
             var label: String

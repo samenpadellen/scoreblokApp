@@ -34,6 +34,40 @@ struct SectionLabel: View {
     }
 }
 
+/// De kop van een blok: een band op het diepe papier met een inkten blokje
+/// ervoor. Zo zie je in één oogopslag waar een nieuw onderdeel begint. Rood
+/// komt er niet aan te pas; dat blijft voor wat actief is of aandacht vraagt.
+struct SectionHeader: View {
+    let title: String
+    var insets: EdgeInsets
+    var tint: Color
+
+    init(_ title: String,
+         insets: EdgeInsets = EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24),
+         tint: Color = M.ink) {
+        self.title = title
+        self.insets = insets
+        self.tint = tint
+    }
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Rectangle().fill(tint).frame(width: 7, height: 7)
+            Text(title.uppercased())
+                .font(M.font(11.5, .extraBold))
+                .tracking(em: 0.12, size: 11.5)
+                .foregroundStyle(tint)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(EdgeInsets(top: 11, leading: insets.leading, bottom: 10, trailing: insets.trailing))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(M.paperDeep)
+        .overlay(alignment: .bottom) { Hairline() }
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 /// De grote schermtitel (34px/800, strak gespatieerd).
 struct ScreenTitle: View {
     let text: String
@@ -104,8 +138,6 @@ struct OutlineButton: View {
     var minHeight: CGFloat = M.tap
     let action: () -> Void
 
-    @State private var pressed = false
-
     var body: some View {
         Button(action: action) {
             Text(title)
@@ -114,11 +146,10 @@ struct OutlineButton: View {
                 .lineLimit(1)
                 .padding(.horizontal, 14)
                 .frame(minHeight: minHeight)
-                .background(pressed ? M.paperDeep : M.surface)
+                .background(M.surface)
                 .overlay(Rectangle().stroke(tint, lineWidth: 1.5))
         }
-        .buttonStyle(.plain)
-        .onLongPressGesture(minimumDuration: 0, pressing: { pressed = $0 }, perform: {})
+        .buttonStyle(PressableStyle())
     }
 }
 
@@ -142,8 +173,9 @@ struct SolidButton: View {
                 .padding(.horizontal, 18)
                 .frame(minHeight: minHeight)
                 .background(enabled ? fill : Color(hex: 0xBAB6B6))
+                .animation(M.Motion.quick, value: enabled)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle())
         .disabled(!enabled)
     }
 }
@@ -171,19 +203,30 @@ struct SegmentedBar<T: Hashable>: View {
     @Binding var selection: T
     var fontSize: CGFloat = 13
 
+    @Namespace private var selectionSpace
+
     var body: some View {
         HStack(spacing: 0) {
             ForEach(Array(options.enumerated()), id: \.offset) { index, option in
                 let isOn = option.value == selection
                 Button {
-                    selection = option.value
+                    withAnimation(M.Motion.settle) { selection = option.value }
                 } label: {
                     Text(option.label)
                         .font(M.font(fontSize, .extraBold))
                         .foregroundStyle(isOn ? M.paper : M.ink)
                         .frame(maxWidth: .infinity)
                         .frame(minHeight: M.tap)
-                        .background(isOn ? M.ink : M.surface)
+                        .background {
+                            ZStack {
+                                M.surface
+                                if isOn {
+                                    Rectangle()
+                                        .fill(M.ink)
+                                        .matchedGeometryEffect(id: "keuze", in: selectionSpace)
+                                }
+                            }
+                        }
                         // Als overlay, zodat de lijn de balk niet oprekt.
                         .overlay(alignment: .trailing) {
                             if index < options.count - 1 {
@@ -195,6 +238,7 @@ struct SegmentedBar<T: Hashable>: View {
             }
         }
         .overlay(Rectangle().stroke(M.ruleHeavy, lineWidth: 1))
+        .sensoryFeedback(.selection, trigger: selection)
     }
 }
 
@@ -222,7 +266,7 @@ struct StepperPair: View {
                 .frame(width: M.tap, height: M.tap)
                 .background(M.surface)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle(scale: 0.92))
         .disabled(!enabled)
     }
 }
@@ -233,7 +277,7 @@ struct HardToggle: View {
 
     var body: some View {
         Button {
-            isOn.toggle()
+            withAnimation(M.Motion.quick) { isOn.toggle() }
         } label: {
             HStack {
                 if isOn { Spacer(minLength: 0) }
@@ -247,7 +291,8 @@ struct HardToggle: View {
             .background(isOn ? M.red : Color.clear)
             .overlay(Rectangle().stroke(M.ink, lineWidth: 2))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle(scale: 0.96))
+        .sensoryFeedback(.selection, trigger: isOn)
     }
 }
 
@@ -256,12 +301,16 @@ struct HardCheckbox: View {
     let isOn: Bool
 
     var body: some View {
-        Text(isOn ? "✓" : "")
+        Text("✓")
             .font(M.font(12, .extraBold))
             .foregroundStyle(M.paper)
+            .scaleEffect(isOn ? 1 : 0.3)
+            .opacity(isOn ? 1 : 0)
             .frame(width: 20, height: 20)
             .background(isOn ? M.ink : Color.clear)
             .overlay(Rectangle().stroke(isOn ? M.ink : M.ruleHeavy, lineWidth: 2))
+            .animation(M.Motion.quick, value: isOn)
+            .sensoryFeedback(.selection, trigger: isOn)
     }
 }
 
@@ -274,6 +323,9 @@ struct FigureTile: View {
     var sub: String?
     var valueSize: CGFloat = 32
     var minHeight: CGFloat = 126
+    /// Het belangrijkste getal van het blok: rood, op het witte vlak, met een
+    /// rode rand erboven.
+    var emphasis = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -288,9 +340,11 @@ struct FigureTile: View {
             Text(value)
                 .font(M.font(valueSize, .extraBold))
                 .tracking(em: -0.03, size: valueSize)
-                .foregroundStyle(M.ink)
+                .foregroundStyle(emphasis ? M.red : M.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                .contentTransition(.numericText())
+                .animation(M.Motion.settle, value: value)
             if let sub {
                 Text(sub)
                     .font(M.font(11.5, .regular))
@@ -302,6 +356,10 @@ struct FigureTile: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: 16, leading: 18, bottom: 18, trailing: 18))
         .frame(minHeight: minHeight, alignment: .topLeading)
+        .background(emphasis ? M.surface : Color.clear)
+        .overlay(alignment: .top) {
+            if emphasis { Rectangle().fill(M.red).frame(height: M.activeEdge) }
+        }
     }
 }
 
@@ -319,6 +377,8 @@ struct BarMeter: View {
                 Rectangle()
                     .fill(fill)
                     .frame(width: proxy.size.width * min(max(fraction, 0), 1))
+                    .animation(M.Motion.settle, value: fraction)
+                    .riseIn()
             }
         }
         .frame(height: height)
@@ -335,13 +395,13 @@ struct RowButton<Content: View>: View {
     /// Gekozen of actief.
     var isActive = false
     var minHeight: CGFloat = 52
+    /// Een randje links in een eigen kleur, bijvoorbeeld het accent van een
+    /// lopend potje. Een actieve rij houdt zijn rode rand.
+    var edge: Color?
     let action: () -> Void
     @ViewBuilder let content: () -> Content
 
-    @State private var pressed = false
-
     private var fill: Color {
-        if pressed { return M.paperDeep }
         if isActive { return M.activeWash }
         return background ?? M.surface
     }
@@ -355,14 +415,17 @@ struct RowButton<Content: View>: View {
                 .overlay(alignment: .leading) {
                     if isActive {
                         Rectangle().fill(M.red).frame(width: M.activeEdge)
+                            .transition(.move(edge: .leading).combined(with: .opacity))
+                    } else if let edge {
+                        Rectangle().fill(edge).frame(width: M.activeEdge)
                     }
                 }
+                .animation(M.Motion.quick, value: isActive)
                 .contentShape(.rect)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle(scale: 0.995))
         .hoverEffect(.highlight)
         .accessibilityAddTraits(isActive ? .isSelected : [])
-        .onLongPressGesture(minimumDuration: 0, pressing: { pressed = $0 }, perform: {})
     }
 }
 

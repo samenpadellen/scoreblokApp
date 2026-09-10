@@ -20,6 +20,7 @@ struct SetupScreen: View {
     @State private var newName = ""
     @State private var newAvatar = 0
     @State private var newRamp = 0
+    @State private var newPhoto: Data?
     @Environment(\.isNarrow) private var isNarrow
     @Environment(\.isCompact) private var isCompact
 
@@ -122,10 +123,7 @@ struct SetupScreen: View {
 
     private var participants: some View {
         VStack(spacing: 0) {
-            SectionLabel("Wie spelen mee — \(seated.count) gekozen")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 18, leading: 24, bottom: 12, trailing: 24))
-            Hairline()
+            SectionHeader("Wie spelen mee — \(seated.count) gekozen", insets: EdgeInsets(top: 18, leading: 24, bottom: 12, trailing: 24))
 
             GridRows(items: roster, columns: isNarrow ? 1 : 2, trailing: { addPlayerRow }) { player in
                 playerRow(player)
@@ -141,10 +139,7 @@ struct SetupScreen: View {
     @ViewBuilder
     private var seatOrderSection: some View {
         Group {
-            SectionLabel("Volgorde aan tafel")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 20, leading: 24, bottom: 12, trailing: 24))
-            Hairline()
+            SectionHeader("Volgorde aan tafel", insets: EdgeInsets(top: 20, leading: 24, bottom: 12, trailing: 24))
 
             if seated.isEmpty {
                 Text("Kies eerst wie er meedoen.")
@@ -217,6 +212,7 @@ struct SetupScreen: View {
         RowButton(minHeight: 64) {
             newName = ""
             newAvatar = Int.random(in: 0..<AvatarShape.count)
+            newPhoto = nil
             newRamp = allPlayers.count % M.playerRamp.count
             addingPlayer = true
         } content: {
@@ -271,10 +267,7 @@ struct SetupScreen: View {
 
     private var rules: some View {
         VStack(spacing: 0) {
-            SectionLabel("Regels voor dit potje")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 18, leading: 24, bottom: 12, trailing: 24))
-            Hairline()
+            SectionHeader("Regels voor dit potje", insets: EdgeInsets(top: 18, leading: 24, bottom: 12, trailing: 24))
 
             switch template.mode {
             case .roundsCumulative:
@@ -395,7 +388,8 @@ struct SetupScreen: View {
     private var newPlayerPanel: some View {
         ModalPanel(title: "Nieuwe speler", onClose: { addingPlayer = false }) {
             VStack(alignment: .leading, spacing: 16) {
-                AvatarPicker(avatarIndex: $newAvatar, rampIndex: $newRamp)
+                AvatarPicker(avatarIndex: $newAvatar, rampIndex: $newRamp,
+                             photo: $newPhoto, name: newName)
                 HardTextField(placeholder: "Naam", text: $newName)
                 HStack(spacing: 10) {
                     Spacer()
@@ -447,6 +441,9 @@ struct SetupScreen: View {
                             avatarIndex: newAvatar,
                             isMe: allPlayers.isEmpty)
         context.insert(player)
+        if let newPhoto {
+            PhotoBook.shared.setPhoto(newPhoto, for: player.id, in: context)
+        }
         chosen.append(player.id)
         addingPlayer = false
     }

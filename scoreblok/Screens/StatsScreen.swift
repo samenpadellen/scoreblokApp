@@ -261,7 +261,9 @@ struct StatsScreen: View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 0),
                             count: isNarrow ? 2 : shown.count)
         return LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(Array(shown.enumerated()), id: \.offset) { _, item in
+            ForEach(Array(shown.enumerated()), id: \.offset) { index, item in
+                // Het winstpercentage is waar je voor komt kijken.
+                let hero = index == 1
                 VStack(alignment: .leading, spacing: 0) {
                     Text(item.0.uppercased())
                         .font(M.font(10, .semiBold))
@@ -274,7 +276,9 @@ struct StatsScreen: View {
                     Text(item.1)
                         .font(M.font(34, .extraBold))
                         .tracking(em: -0.03, size: 34)
-                        .foregroundStyle(M.ink)
+                        .foregroundStyle(hero ? M.red : M.ink)
+                        .contentTransition(.numericText())
+                        .animation(M.Motion.settle, value: item.1)
                         .lineLimit(1)
                         .minimumScaleFactor(0.5)
                     Text(item.2)
@@ -287,6 +291,10 @@ struct StatsScreen: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(EdgeInsets(top: 16, leading: 18, bottom: 18, trailing: 18))
                 .frame(minHeight: 126, alignment: .topLeading)
+                .background(hero ? M.surface : Color.clear)
+                .overlay(alignment: .top) {
+                    if hero { Rectangle().fill(M.red).frame(height: M.activeEdge) }
+                }
                 .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
                 .overlay(alignment: .bottom) { if isNarrow { Hairline() } }
             }

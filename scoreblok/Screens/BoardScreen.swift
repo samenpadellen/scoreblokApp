@@ -20,10 +20,16 @@ struct BoardScreen: View {
     @State private var undoStack: [[Int: [UUID: Int]]] = []
     @State private var confirmFinish = false
     @State private var confirmNextRound = false
+    /// Tellers voor de trilling bij een toets en bij een vastgelegde waarde.
+    @State private var keyTaps = 0
+    @State private var committed = 0
 
     private var seats: [Player] { match.orderedPlayers }
     private var standings: [Standing] { match.standings }
     private var leaderID: UUID? { standings.first?.player.id }
+    /// De kleur van het spel: een streep onder de balk en de waas op de
+    /// kolom van de leider. De gekozen cel blijft rood.
+    private var accent: GameAccent { GameAccent.of(match.gameName) }
     private var rowCount: Int { match.displayedRoundCount }
     /// De rondekolom is smal bij losse nummers en breed als er een opdracht
     /// per ronde bij staat.
@@ -66,6 +72,7 @@ struct BoardScreen: View {
             if !isCompact {
                 toolbar
                 HeavyRule()
+                Rectangle().fill(accent.base).frame(height: 3)
             }
 
             if match.mode == .winnerOnly {
@@ -117,6 +124,8 @@ struct BoardScreen: View {
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(phases: .down) { press in handleKey(press) }
+        .sensoryFeedback(.impact(weight: .light, intensity: 0.5), trigger: keyTaps)
+        .sensoryFeedback(.impact(weight: .medium, intensity: 0.8), trigger: committed)
         .onAppear {
             selectedRound = match.currentRoundIndex
             selectedSeat = firstEmptySeat(in: selectedRound)
@@ -207,7 +216,7 @@ struct BoardScreen: View {
                                     foreground: M.ink, size: 9)
                             } else if player.id == leaderID,
                                       match.rounds.contains(where: { !$0.entries.isEmpty }) {
-                                Tag(text: "Leidt", background: M.red, size: 9)
+                                Tag(text: "Leidt", background: accent.onPaper, size: 9)
                             }
                         }
                         Spacer(minLength: 0)
@@ -219,6 +228,8 @@ struct BoardScreen: View {
                             .font(M.font(30, .extraBold))
                             .tracking(em: -0.03, size: 30)
                             .foregroundStyle(M.ink)
+                            .contentTransition(.numericText(value: Double(match.total(for: player))))
+                            .animation(M.Motion.settle, value: match.total(for: player))
                         Text("\(standing?.rank ?? 0)e")
                             .font(M.font(11, .regular))
                             .foregroundStyle(M.inkAlpha(0.5))
@@ -229,7 +240,7 @@ struct BoardScreen: View {
                 // spelers de laatste kolom half buiten beeld.
                 .padding(EdgeInsets(top: 10, leading: 14, bottom: 8, trailing: 14))
                 .frame(width: playerColumnWidth, alignment: .leading)
-                .background(player.id == leaderID ? M.paperDeep : .clear)
+                .background(player.id == leaderID ? accent.wash : .clear)
                 .overlay(alignment: .trailing) { columnRule }
             }
         }
@@ -293,6 +304,8 @@ struct BoardScreen: View {
                 .font(isSelected ? M.font(20, .extraBold)
                       : (value == nil ? M.font(16, .regular) : M.font(19, .semiBold)))
                 .foregroundStyle(value == nil && !isSelected ? M.inkAlpha(0.28) : M.ink)
+                .contentTransition(.numericText())
+                .animation(M.Motion.quick, value: value)
                 .frame(width: playerColumnWidth)
                 .frame(minHeight: height)
                 .overlay(alignment: .topTrailing) {
@@ -307,7 +320,7 @@ struct BoardScreen: View {
                             .padding(4)
                     }
                 }
-                .background(isSelected ? M.redWash : (isLeaderColumn ? M.inkAlpha(0.05) : .clear))
+                .background(isSelected ? M.redWash : (isLeaderColumn ? accent.wash.opacity(0.55) : .clear))
                 .overlay {
                     if isSelected { Rectangle().stroke(M.red, lineWidth: 2) }
                 }
@@ -540,7 +553,7 @@ struct BoardScreen: View {
                 .background(isConfirm ? M.red : signOn ? M.ink : isNumber ? M.surface : M.paperKey)
                 .overlay(Rectangle().stroke(isConfirm ? M.red : M.inkAlpha(0.35), lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableStyle(scale: 0.94))
         .disabled(signDisabled)
         .accessibilityLabel(isConfirm ? "Bevestigen"
                             : label == "⌫" ? "Wissen"
@@ -671,6 +684,7 @@ struct BoardScreen: View {
     }
 
     private func press(_ label: String) {
+        if label != "Bevestigen" { keyTaps += 1 }
         switch label {
         case "⌫":
             if entry.isEmpty { negative = false } else { entry.removeLast() }
@@ -684,8 +698,10 @@ struct BoardScreen: View {
     }
 
     private func select(round index: Int, seat: Int) {
-        selectedRound = index
-        selectedSeat = seat
+        withAnimation(M.Motion.quick) {
+            selectedRound = index
+            selectedSeat = seat
+        }
         entry = ""
         negative = false
     }
@@ -703,6 +719,7 @@ struct BoardScreen: View {
         var value = Int(entry) ?? 0
         if negative && match.allowNegative { value = -value }
         round(at: selectedRound).setValue(value, for: player.id, in: context)
+        committed += 1
         save()
         entry = ""
         negative = false
@@ -750,8 +767,10 @@ struct BoardScreen: View {
         if match.roundCount > 0 && selectedRound >= match.roundCount - 1 { finish(); return }
 
         let next = selectedRound + 1
-        selectedRound = next
-        selectedSeat = 0
+        withAnimation(M.Motion.settle) {
+            selectedRound = next
+            selectedSeat = 0
+        }
         entry = ""
         negative = false
     }
@@ -838,10 +857,7 @@ private struct FinishOrderBoard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SectionLabel("Eindvolgorde — tik aan wie klaar is")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(EdgeInsets(top: 18, leading: 28, bottom: 12, trailing: 28))
-            Hairline()
+            SectionHeader("Eindvolgorde — tik aan wie klaar is", insets: EdgeInsets(top: 18, leading: 28, bottom: 12, trailing: 28))
 
             ForEach(seats) { player in
                 RowButton(isActive: place(of: player) != nil,

@@ -11,6 +11,8 @@ struct NowPlayingBar: View {
     @Environment(\.isCompact) private var isCompact
     @Environment(\.isNarrow) private var isNarrow
 
+    private var accent: GameAccent { GameAccent.of(match.gameName) }
+
     var body: some View {
         content
             .popoverTip(ResumeTip())
@@ -22,7 +24,12 @@ struct NowPlayingBar: View {
                 if isCompact { compactLayout } else { wideLayout }
             }
             .background(M.ink)
-            .overlay(alignment: .top) { HeavyRule() }
+            .overlay(alignment: .top) {
+                VStack(spacing: 0) {
+                    HeavyRule()
+                    Rectangle().fill(accent.base).frame(height: 3)
+                }
+            }
             .contentShape(.rect)
         }
         .buttonStyle(.plain)
@@ -37,7 +44,7 @@ struct NowPlayingBar: View {
     /// herkennen welk potje het is.
     private var compactLayout: some View {
         HStack(spacing: 12) {
-            GameMark(mono: match.mono, name: match.gameName, background: M.red, size: 32)
+            GameMark(mono: match.mono, name: match.gameName, background: accent.onPaper, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(match.gameName)
                     .font(M.font(14.5, .extraBold))
@@ -65,13 +72,13 @@ struct NowPlayingBar: View {
     private var wideLayout: some View {
         HStack(spacing: 0) {
             HStack(spacing: 14) {
-                GameMark(mono: match.mono, name: match.gameName, background: M.red, size: 34)
+                GameMark(mono: match.mono, name: match.gameName, background: accent.onPaper, size: 34)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("POTJE OPEN")
                         .font(M.font(9.5, .semiBold))
                         .tracking(em: 0.14, size: 9.5)
-                        .foregroundStyle(Color(hex: 0xFF9783))
+                        .foregroundStyle(accent.onInk)
                     Text(match.gameName)
                         .font(M.font(15, .extraBold))
                         .foregroundStyle(M.paper)

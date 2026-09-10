@@ -12,6 +12,14 @@ struct BackupDocument: Codable {
     var matches: [MatchData] = []
     /// Speelgroepen. Ontbreekt in reservekopieën van vóór de speelgroepen.
     var groups: [GroupData]?
+    /// Profielfoto's. Ontbreekt in reservekopieën van vóór de foto's.
+    var photos: [PhotoData]?
+
+    struct PhotoData: Codable {
+        var playerID: UUID
+        var updatedAt: Date
+        var jpeg: Data
+    }
 
     struct PlayerData: Codable {
         var id: UUID
@@ -188,6 +196,13 @@ enum Backup {
                       ($0.key.uuidString, $0.value)
                   }))
         }
+
+        document.photos = PhotoBook.newest(try context.fetch(FetchDescriptor<PlayerPhoto>()))
+            .values
+            .compactMap { photo in
+                photo.imageData.map { .init(playerID: photo.playerID, updatedAt: photo.updatedAt, jpeg: $0) }
+            }
+            .sorted { $0.playerID.uuidString < $1.playerID.uuidString }
 
         return document
     }
@@ -429,8 +444,31 @@ enum Backup {
             }
         }
 
+        // Foto's: de nieuwste wint, een foto wordt nooit gewist.
+        if let photos = document.photos {
+            restorePhotos(photos, onlyWhenMissing: false, into: context)
+        }
+
         Storage.save(context)
         return result
+    }
+
+    /// Zet foto's terug. Met `onlyWhenMissing` blijft een eigen foto altijd
+    /// staan; zo overschrijft samen bijwerken nooit hoe jij iemand bewaard hebt.
+    @MainActor
+    static func restorePhotos(_ photos: [BackupDocument.PhotoData], onlyWhenMissing: Bool,
+                              into context: ModelContext) {
+        let local = PhotoBook.newest((try? context.fetch(FetchDescriptor<PlayerPhoto>())) ?? [])
+        for data in photos {
+            if let existing = local[data.playerID] {
+                guard !onlyWhenMissing, data.updatedAt > existing.updatedAt else { continue }
+                existing.imageData = data.jpeg
+                existing.updatedAt = data.updatedAt
+            } else {
+                context.insert(PlayerPhoto(playerID: data.playerID, imageData: data.jpeg,
+                                           updatedAt: data.updatedAt))
+            }
+        }
     }
 
     /// Vult een bestaand potje aan met wat de kopie meer heeft. Verwijdert
