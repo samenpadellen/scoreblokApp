@@ -14,20 +14,22 @@ extension View {
     }
 }
 
-/// Klein kapitaal kopje boven een blok: 10px/800, ruime letterspatiëring.
+/// Kopje in kapitalen boven een blok. Moet een blok zichtbaar openen: te
+/// licht en het verdwijnt tussen de haarlijnen, en dan zie je niet meer waar
+/// het ene blok ophoudt en het volgende begint.
 struct SectionLabel: View {
     let text: String
-    var tint: Color = M.inkAlpha(0.5)
+    var tint: Color = M.inkAlpha(0.72)
 
-    init(_ text: String, tint: Color = M.inkAlpha(0.5)) {
+    init(_ text: String, tint: Color = M.inkAlpha(0.72)) {
         self.text = text
         self.tint = tint
     }
 
     var body: some View {
         Text(text.uppercased())
-            .font(M.font(10, .semiBold))
-            .tracking(em: 0.14, size: 10)
+            .font(M.font(11, .extraBold))
+            .tracking(em: 0.12, size: 11)
             .foregroundStyle(tint)
     }
 }
@@ -100,7 +102,7 @@ struct OutlineButton: View {
                 .padding(.horizontal, 14)
                 .frame(minHeight: minHeight)
                 .background(pressed ? M.inkAlpha(0.07) : .clear)
-                .overlay(Rectangle().stroke(M.ruleHeavy, lineWidth: 1))
+                .overlay(Rectangle().stroke(tint, lineWidth: 1.5))
         }
         .buttonStyle(.plain)
         .onLongPressGesture(minimumDuration: 0, pressing: { pressed = $0 }, perform: {})

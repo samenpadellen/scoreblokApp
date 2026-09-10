@@ -80,37 +80,52 @@ struct StatsScreen: View {
         if isCompact {
             // Op een telefoon past de balk niet; hij schuift, en de
             // voetnoot valt weg.
-            ScrollView(.horizontal, showsIndicators: false) {
+            // Periode en spel zijn twee verschillende keuzes. Op één
+            // schuivende regel viel het spelfilter rechts buiten beeld en
+            // was niet te zien dat het er was.
+            VStack(spacing: 0) {
                 HStack(spacing: 0) {
-                    ForEach(StatsPeriod.allCases) { option in
+                    ForEach(Array(StatsPeriod.allCases.enumerated()), id: \.element) { index, option in
                         let isOn = option == period
                         Button { period = option } label: {
                             Text(option.rawValue)
                                 .font(M.font(12.5, .extraBold))
                                 .foregroundStyle(isOn ? M.paper : M.ink)
-                                .fixedSize()
-                                .padding(.horizontal, 16)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                .frame(maxWidth: .infinity)
                                 .frame(minHeight: 46)
                                 .background(isOn ? M.ink : .clear)
+                                .overlay(alignment: .trailing) {
+                                    if index < StatsPeriod.allCases.count - 1 {
+                                        Rectangle().fill(M.hairline).frame(width: 1)
+                                    }
+                                }
                         }
                         .buttonStyle(.plain)
-                        Rectangle().fill(M.hairline).frame(width: 1, height: 46)
                     }
-                    Menu {
-                        Button("Alle spellen") { gameFilter = nil }
-                        ForEach(gameNames, id: \.self) { name in
-                            Button(name) { gameFilter = name }
-                        }
-                    } label: {
-                        Text("\(gameFilter ?? "Alle spellen") ▾")
-                            .font(M.font(12.5, .semiBold))
-                            .foregroundStyle(M.inkAlpha(0.6))
-                            .fixedSize()
-                            .padding(.horizontal, 16)
-                            .frame(minHeight: 46)
-                    }
-                    .menuStyle(.borderlessButton)
                 }
+                Hairline()
+                Menu {
+                    Button("Alle spellen") { gameFilter = nil }
+                    ForEach(gameNames, id: \.self) { name in
+                        Button(name) { gameFilter = name }
+                    }
+                } label: {
+                    HStack {
+                        Text("Spel")
+                            .font(M.font(12.5, .regular))
+                            .foregroundStyle(M.inkAlpha(0.55))
+                        Spacer(minLength: 8)
+                        Text("\(gameFilter ?? "Alle spellen") ▾")
+                            .font(M.font(12.5, .extraBold))
+                            .foregroundStyle(M.ink)
+                    }
+                    .padding(.horizontal, 20)
+                    .frame(minHeight: 44)
+                    .contentShape(.rect)
+                }
+                .menuStyle(.borderlessButton)
             }
         } else {
             wideFilterBar

@@ -93,19 +93,24 @@ struct FinishScreen: View {
         }
     }
 
+    /// Eerst het podium, daarna de volledige stand over de hele breedte.
+    /// Naast het podium kreeg de stand de restruimte, en die was zo smal dat
+    /// de namen tot "J…" werden afgekapt.
     private var wideePodium: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            podiumColumns
-
-            VStack(alignment: .leading, spacing: 0) {
-                SectionLabel("Volledige stand")
-                    .padding(.bottom, 10)
-                standingsList(padding: 0, minHeight: 46)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .bottom, spacing: 0) {
+                podiumColumns
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, 22)
+            .padding(EdgeInsets(top: 28, leading: 28, bottom: 0, trailing: 28))
+
+            HeavyRule().padding(.top, 24)
+            SectionLabel("Volledige stand")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(EdgeInsets(top: 16, leading: 28, bottom: 10, trailing: 28))
+            Hairline()
+            standingsList(padding: 28, minHeight: 50)
         }
-        .padding(EdgeInsets(top: 28, leading: 28, bottom: 0, trailing: 28))
     }
 
     @ViewBuilder

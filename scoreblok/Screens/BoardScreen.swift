@@ -36,10 +36,14 @@ struct BoardScreen: View {
     /// liever horizontaal dan dat de cijfers samenknijpen.
     private var minPlayerColumn: CGFloat { 92 }
 
+    /// De breedte die de tabel echt heeft, naast het invoerpaneel.
+    @State private var tableArea: CGFloat = 0
+
     private var playerColumnWidth: CGFloat {
         guard !seats.isEmpty else { return minPlayerColumn }
-        let free = contentWidth - roundColumnWidth
-        return max(minPlayerColumn, free / CGFloat(seats.count))
+        let area = tableArea > 0 ? tableArea : contentWidth
+        let free = area - roundColumnWidth
+        return max(minPlayerColumn, (free / CGFloat(seats.count)).rounded(.down))
     }
 
     private var tableWidth: CGFloat {
@@ -97,6 +101,8 @@ struct BoardScreen: View {
                             .frame(minWidth: proxy.size.width,
                                    minHeight: proxy.size.height,
                                    alignment: .topLeading)
+                            .onAppear { tableArea = proxy.size.width }
+                            .onChange(of: proxy.size.width) { _, width in tableArea = width }
                     }
                 }
                 keypadBar
@@ -218,8 +224,11 @@ struct BoardScreen: View {
                             .foregroundStyle(M.inkAlpha(0.5))
                     }
                 }
-                .frame(width: playerColumnWidth, alignment: .leading)
+                // Marge binnen de kolom. Stond hij erbuiten, dan was elke kopcel
+                // 28 pt breder dan de cijfers eronder, en viel bij vier
+                // spelers de laatste kolom half buiten beeld.
                 .padding(EdgeInsets(top: 10, leading: 14, bottom: 8, trailing: 14))
+                .frame(width: playerColumnWidth, alignment: .leading)
                 .background(player.id == leaderID ? M.paperDeep : .clear)
                 .overlay(alignment: .trailing) { columnRule }
             }

@@ -6,6 +6,7 @@ struct CustomGameScreen: View {
 
     @Environment(Router.self) private var router
     @Environment(\.modelContext) private var context
+    @Environment(\.isCompact) private var isCompact
     @Query(sort: \GameTemplate.sortIndex) private var templates: [GameTemplate]
 
     @State private var name = ""
@@ -152,7 +153,8 @@ struct CustomGameScreen: View {
     // MARK: - Naam en monogram
 
     private var identity: some View {
-        HStack(alignment: .top, spacing: 0) {
+        AnyLayout(isCompact ? AnyLayout(VStackLayout(spacing: 0))
+                  : AnyLayout(HStackLayout(alignment: .top, spacing: 0))) {
             VStack(alignment: .leading, spacing: 10) {
                 SectionLabel("Naam")
                 HardTextField(placeholder: "Boerenbridge", text: $name)
@@ -161,8 +163,11 @@ struct CustomGameScreen: View {
                     }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(EdgeInsets(top: 16, leading: 24, bottom: 20, trailing: 24))
-            .overlay(alignment: .trailing) { Rectangle().fill(M.hairline).frame(width: 1) }
+            .padding(EdgeInsets(top: 16, leading: isCompact ? 20 : 24,
+                                bottom: 20, trailing: isCompact ? 20 : 24))
+            .overlay(alignment: isCompact ? .bottom : .trailing) {
+                if isCompact { Hairline() } else { Rectangle().fill(M.hairline).frame(width: 1) }
+            }
 
             VStack(alignment: .leading, spacing: 10) {
                 SectionLabel("Monogram")
@@ -230,27 +235,45 @@ struct CustomGameScreen: View {
                 RowButton(background: mode == option ? M.redTint : .clear, minHeight: 66) {
                     mode = option
                 } content: {
-                    HStack(alignment: .top, spacing: 16) {
+                    HStack(alignment: .top, spacing: isCompact ? 14 : 16) {
                         HardCheckbox(isOn: mode == option)
                             .padding(.top, 2)
-                        Text(option.name)
-                            .font(M.font(14.5, .extraBold))
-                            .foregroundStyle(M.ink)
-                            .frame(width: 190, alignment: .leading)
-                        Text(option.explanation)
-                            .font(M.font(12.5, .regular))
-                            .foregroundStyle(M.inkAlpha(0.65))
-                            .lineSpacing(4)
+                        if isCompact {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(option.name)
+                                    .font(M.font(14.5, .extraBold))
+                                    .foregroundStyle(M.ink)
+                                Text(option.explanation)
+                                    .font(M.font(12.5, .regular))
+                                    .foregroundStyle(M.inkAlpha(0.65))
+                                    .lineSpacing(3)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(option.examples)
+                                    .font(M.font(11, .semiBold))
+                                    .foregroundStyle(M.inkAlpha(0.45))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text(option.examples)
-                            .font(M.font(11, .semiBold))
-                            .foregroundStyle(M.inkAlpha(0.45))
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 150, alignment: .trailing)
-                            .fixedSize(horizontal: false, vertical: true)
+                        } else {
+                            Text(option.name)
+                                .font(M.font(14.5, .extraBold))
+                                .foregroundStyle(M.ink)
+                                .frame(width: 190, alignment: .leading)
+                            Text(option.explanation)
+                                .font(M.font(12.5, .regular))
+                                .foregroundStyle(M.inkAlpha(0.65))
+                                .lineSpacing(4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(option.examples)
+                                .font(M.font(11, .semiBold))
+                                .foregroundStyle(M.inkAlpha(0.45))
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 150, alignment: .trailing)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, isCompact ? 20 : 24)
                     .padding(.vertical, 14)
                 }
                 Hairline()

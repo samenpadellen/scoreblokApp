@@ -8,6 +8,9 @@ struct NowPlayingBar: View {
     let match: Match
     let onResume: () -> Void
 
+    @Environment(\.isCompact) private var isCompact
+    @Environment(\.isNarrow) private var isNarrow
+
     var body: some View {
         content
             .popoverTip(ResumeTip())
@@ -15,31 +18,79 @@ struct NowPlayingBar: View {
 
     private var content: some View {
         Button(action: onResume) {
-            HStack(spacing: 0) {
-                HStack(spacing: 14) {
-                    GameMark(mono: match.mono, background: M.red, size: 34)
+            Group {
+                if isCompact { compactLayout } else { wideLayout }
+            }
+            .background(M.ink)
+            .overlay(alignment: .top) { HeavyRule() }
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Potje open: \(match.gameName), \(status)")
+        .accessibilityHint("Ga verder met tellen")
+    }
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("POTJE OPEN")
-                            .font(M.font(9.5, .semiBold))
-                            .tracking(em: 0.14, size: 9.5)
-                            .foregroundStyle(Color(hex: 0xFF9783))
-                        Text(match.gameName)
-                            .font(M.font(15, .extraBold))
-                            .foregroundStyle(M.paper)
-                            .lineLimit(1)
-                    }
+    /// Op een telefoon past de rij met standen er niet naast. Eerder werd
+    /// alles in 402 pt geperst: "Ga verder" brak per lettergreep af en de
+    /// naam van het spel viel weg. Hier alleen wat je nodig hebt om te
+    /// herkennen welk potje het is.
+    private var compactLayout: some View {
+        HStack(spacing: 12) {
+            GameMark(mono: match.mono, background: M.red, size: 32)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(match.gameName)
+                    .font(M.font(14.5, .extraBold))
+                    .foregroundStyle(M.paper)
+                    .lineLimit(1)
+                Text(status)
+                    .font(M.font(11.5, .regular))
+                    .foregroundStyle(M.paper.opacity(0.65))
+                    .lineLimit(1)
+            }
+            .layoutPriority(1)
+            Spacer(minLength: 8)
+            Text("Verder →")
+                .font(M.font(12.5, .extraBold))
+                .foregroundStyle(M.paper)
+                .fixedSize()
+                .padding(.horizontal, 14)
+                .frame(height: 36)
+                .background(M.red)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 60)
+    }
 
-                    Text(status)
-                        .font(M.font(12, .regular))
-                        .foregroundStyle(M.paper.opacity(0.6))
+    private var wideLayout: some View {
+        HStack(spacing: 0) {
+            HStack(spacing: 14) {
+                GameMark(mono: match.mono, background: M.red, size: 34)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("POTJE OPEN")
+                        .font(M.font(9.5, .semiBold))
+                        .tracking(em: 0.14, size: 9.5)
+                        .foregroundStyle(Color(hex: 0xFF9783))
+                    Text(match.gameName)
+                        .font(M.font(15, .extraBold))
+                        .foregroundStyle(M.paper)
                         .lineLimit(1)
                 }
-                .padding(.horizontal, 24)
-                .layoutPriority(0)
 
-                Spacer(minLength: 12)
+                Text(status)
+                    .font(M.font(12, .regular))
+                    .foregroundStyle(M.paper.opacity(0.6))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 24)
+            .layoutPriority(1)
 
+            Spacer(minLength: 12)
+
+            // Staand op een iPad is er geen ruimte voor de standen naast de
+            // naam; dan liever de naam heel dan de standen erbij.
+            if !isNarrow {
                 HStack(spacing: 8) {
                     ForEach(match.standings.prefix(5)) { standing in
                         HStack(spacing: 7) {
@@ -54,22 +105,17 @@ struct NowPlayingBar: View {
                     }
                 }
                 .padding(.trailing, 20)
-                .layoutPriority(1)
-
-                Text("Ga verder →")
-                    .font(M.font(13, .extraBold))
-                    .foregroundStyle(M.paper)
-                    .padding(.horizontal, 20)
-                    .frame(maxHeight: .infinity)
-                    .background(M.red)
-                    .layoutPriority(1)
             }
-            .frame(height: 66)
-            .background(M.ink)
-            .overlay(alignment: .top) { HeavyRule() }
-            .contentShape(.rect)
+
+            Text("Ga verder →")
+                .font(M.font(13, .extraBold))
+                .foregroundStyle(M.paper)
+                .fixedSize()
+                .padding(.horizontal, 20)
+                .frame(maxHeight: .infinity)
+                .background(M.red)
         }
-        .buttonStyle(.plain)
+        .frame(height: 66)
     }
 
     /// Waar het potje staat: bij Jokeren de opdracht, anders het rondenummer.

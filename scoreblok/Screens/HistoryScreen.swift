@@ -161,9 +161,7 @@ struct HistoryScreen: View {
                                         .font(M.font(11.5, .semiBold))
                                         .foregroundStyle(M.ink)
                                 }
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 5)
-                                .overlay(Rectangle().stroke(M.hairline, lineWidth: 1))
+                                .padding(.trailing, 10)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -215,9 +213,7 @@ struct HistoryScreen: View {
                             .font(M.font(11, .semiBold))
                             .foregroundStyle(M.ink)
                     }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .overlay(Rectangle().stroke(M.hairline, lineWidth: 1))
+                    .padding(.trailing, 8)
                 }
                 Spacer(minLength: 0)
             }

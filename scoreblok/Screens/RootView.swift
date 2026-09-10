@@ -236,11 +236,15 @@ struct RootView: View {
             Button {
                 showingSettings = true
             } label: {
-                Text("INSTELLINGEN")
-                    .font(M.font(10, .semiBold))
-                    .tracking(em: 0.12, size: 10)
-                    .foregroundStyle(Storage.mode.isFailed ? M.red : M.inkAlpha(0.5))
+                Text("Instellingen")
+                    .font(M.font(12, .semiBold))
+                    .foregroundStyle(Storage.mode.isFailed ? M.red : M.ink)
+                    .padding(.horizontal, 12)
+                    .frame(height: 32)
+                    .overlay(Rectangle().stroke(Storage.mode.isFailed ? M.red : M.ink,
+                                                lineWidth: 1.5))
                     .frame(minHeight: M.tap)
+                    .contentShape(.rect)
             }
             .buttonStyle(.plain)
         }
@@ -315,9 +319,19 @@ struct RootView: View {
             Button {
                 showingSettings = true
             } label: {
-                VStack(alignment: .leading, spacing: 6) {
-                    SectionLabel("Instellingen · \(storageTitle)",
-                                 tint: storageIsProblem ? M.red : M.inkAlpha(0.5))
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text("Instellingen")
+                            .font(M.font(compact ? 13.5 : 14.5, .semiBold))
+                            .foregroundStyle(M.ink)
+                        Spacer(minLength: 4)
+                        Text("›")
+                            .font(M.font(17, .semiBold))
+                            .foregroundStyle(M.inkAlpha(0.45))
+                    }
+                    SectionLabel(storageTitle,
+                                 tint: storageIsProblem ? M.red : M.inkAlpha(0.55))
+                        .padding(.top, 6)
                     Text(storageDetail)
                         .font(M.font(12.5, .regular))
                         .foregroundStyle(storageIsProblem ? M.red : M.inkAlpha(0.7))

@@ -170,22 +170,25 @@ struct PlayScreen: View {
                                 .tracking(em: 0.08, size: 11)
                                 .foregroundStyle(M.paper.opacity(0.6))
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                                 .padding(.bottom, 8)
                             Text("\(standing.total)")
                                 .font(M.font(28, .extraBold))
                                 .tracking(em: -0.02, size: 28)
                                 .foregroundStyle(M.paper)
                         }
-                        .frame(width: 104, alignment: .leading)
-                        .padding(EdgeInsets(top: 20, leading: 16, bottom: 20, trailing: 16))
+                        .frame(maxWidth: isNarrow ? .infinity : nil, alignment: .leading)
+                        .frame(width: isNarrow ? nil : 104, alignment: .leading)
+                        .padding(EdgeInsets(top: isNarrow ? 14 : 20, leading: isNarrow ? 12 : 16,
+                                            bottom: isNarrow ? 14 : 20, trailing: isNarrow ? 12 : 16))
                         .overlay(alignment: .leading) {
                             Rectangle().fill(M.paper.opacity(0.22)).frame(width: 1)
                         }
                     }
                 }
-                .fixedSize(horizontal: true, vertical: false)
+                .fixedSize(horizontal: !isNarrow, vertical: false)
                 .layoutPriority(1)
-                .padding(.leading, isNarrow ? 28 : 0)
+                .padding(.leading, isNarrow ? (isCompact ? 8 : 28) : 0)
                 .padding(.bottom, isNarrow ? 8 : 0)
             }
             .background(M.ink)
