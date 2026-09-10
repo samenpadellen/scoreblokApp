@@ -24,6 +24,9 @@ struct SettingsPanel: View {
     @State private var message: String?
     @State private var isError = false
     @Environment(\.openTour) private var openTour
+    @Environment(StoreController.self) private var store
+    /// De kant waarnaar je wilt overstappen, zolang je dat nog bevestigt.
+    @State private var confirmSwitch: StorageChoice?
     @State private var tipsReset = false
 
     var body: some View {
@@ -107,40 +110,103 @@ struct SettingsPanel: View {
         }
     }
 
-    // MARK: - iCloud
+    // MARK: - Lokaal of iCloud
 
     private var cloudSection: some View {
-        section(cloud.title, tint: cloud.isHealthy ? M.inkAlpha(0.5) : M.red) {
+        let current = store.choice ?? .local
+        return section("Opslag · \(current.title)",
+                       tint: cloud.isHealthy ? M.inkAlpha(0.72) : M.red) {
             VStack(alignment: .leading, spacing: 10) {
-                Text(cloud.detail)
+                Text(current == .iCloud ? cloud.detail : "Alles staat alleen op dit apparaat.")
                     .font(M.font(14, .semiBold))
                     .foregroundStyle(cloud.isHealthy ? M.ink : M.red)
                     .fixedSize(horizontal: false, vertical: true)
 
-                infoRow("Account", cloud.account.summary)
-                infoRow("Container", Storage.cloudContainerID)
-                if let sync = cloud.lastSync {
-                    infoRow("Laatste \(sync.kind)",
-                            "\(sync.at.formatted(.dateTime.day().month(.abbreviated).hour().minute()))"
-                            + (sync.succeeded ? "" : " · mislukt"))
+                if current == .iCloud {
+                    infoRow("Account", cloud.account.summary)
+                    if let sync = cloud.lastSync {
+                        infoRow("Laatste \(sync.kind)",
+                                "\(sync.at.formatted(.dateTime.day().month(.abbreviated).hour().minute()))"
+                                + (sync.succeeded ? "" : " · mislukt"))
+                    }
                 }
 
-                Text(cloud.containerIsCloud
-                     ? "Wat je invult gaat naar je andere apparaten zodra ze online zijn. Bewaar toch af en toe een reservekopie; iCloud is een tweede kopie, geen archief."
-                     : "De app draait zonder iCloud. Zet iCloud aan op dit apparaat en start de app opnieuw.")
+                Text(current == .iCloud
+                     ? "Wat je invult gaat naar je andere apparaten met hetzelfde iCloud-account zodra ze online zijn. Bewaar toch af en toe een reservekopie: iCloud is een tweede kopie, geen archief."
+                     : "Niets verlaat dit apparaat. Wil je je potjes ook op een ander apparaat, stap dan over naar iCloud.")
                     .font(M.font(12, .regular))
                     .foregroundStyle(M.inkAlpha(0.55))
                     .lineSpacing(4)
                     .fixedSize(horizontal: false, vertical: true)
 
-                HStack(spacing: 10) {
-                    OutlineButton(title: "Opnieuw controleren") { cloud.refresh() }
-                    Spacer(minLength: 0)
+                if let target = confirmSwitch {
+                    switchConfirmation(to: target)
+                } else {
+                    // Naast elkaar als het past; op een telefoon onder elkaar,
+                    // anders worden beide knoppen afgekapt.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 10) {
+                            switchButtons
+                            Spacer(minLength: 0)
+                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            switchButtons
+                        }
+                    }
                 }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 18)
         }
+    }
+
+    @ViewBuilder
+    private var switchButtons: some View {
+        let current = store.choice ?? .local
+        OutlineButton(title: current == .iCloud ? "Overstappen naar lokaal" : "Overstappen naar iCloud") {
+            confirmSwitch = current == .iCloud ? .local : .iCloud
+        }
+        if current == .iCloud {
+            OutlineButton(title: "Opnieuw controleren") { cloud.refresh() }
+        }
+    }
+
+    /// Eerst zeggen wat er gebeurt, dan pas doen.
+    private func switchConfirmation(to target: StorageChoice) -> some View {
+        let blocked = target == .iCloud && !cloud.account.isAvailable
+        return VStack(alignment: .leading, spacing: 10) {
+            Text(target == .iCloud ? "Overstappen naar iCloud" : "Overstappen naar lokaal")
+                .font(M.font(15, .extraBold))
+                .foregroundStyle(M.ink)
+            Text(target == .iCloud
+                 ? "Je potjes gaan naar iCloud en daarna naar je andere apparaten. Staat daar al iets, dan wordt dat samengevoegd; er gaat niets verloren. De lokale kopie op dit apparaat wordt daarna opgeruimd."
+                 : "Je potjes worden naar dit apparaat gekopieerd en dit apparaat stopt met synchroniseren. In iCloud en op je andere apparaten blijft alles staan.")
+                .font(M.font(12.5, .regular))
+                .foregroundStyle(M.inkAlpha(0.72))
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Vooraf maakt de app automatisch een reservekopie.")
+                .font(M.font(12, .semiBold))
+                .foregroundStyle(M.inkAlpha(0.6))
+            if blocked {
+                Text("Kan nu niet. \(cloud.account.summary). Log in via de Instellingen-app en probeer het opnieuw.")
+                    .font(M.font(12.5, .semiBold))
+                    .foregroundStyle(M.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 10) {
+                SolidButton(title: "Overstappen", enabled: !blocked) {
+                    confirmSwitch = nil
+                    onClose()
+                    Task { await store.switchTo(target) }
+                }
+                OutlineButton(title: "Annuleren") { confirmSwitch = nil }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(14)
+        .overlay(Rectangle().stroke(M.ink, lineWidth: 1.5))
+        .task { if target == .iCloud { cloud.refresh() } }
     }
 
     // MARK: - Opslag
@@ -349,6 +415,7 @@ struct SettingsPanel: View {
         do {
             guard let url = try result.get().first else { return }
             let outcome = try Backup.restore(from: url, into: context)
+            store.didRestoreBackup()
             message = outcome.summary
             isError = false
             backupURL = try? Backup.write(from: context)

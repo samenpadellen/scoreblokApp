@@ -41,43 +41,58 @@ final class CloudStatus {
 
     private(set) var account: Account = .unknown
     private(set) var lastSync: Sync?
-    /// Of de app überhaupt met een iCloud-winkel is gestart.
+    /// Wanneer iCloud voor het laatst met succes gegevens ophaalde.
+    private(set) var lastImportAt: Date?
+    /// Of er gekozen is voor iCloud en die opslag openging.
     private(set) var containerIsCloud = false
 
-    private var observers: [NSObjectProtocol] = []
+    /// Na elke gelukte ophaalronde; daarna ruimt de app dubbelingen op.
+    @ObservationIgnored var onImport: (@MainActor () -> Void)?
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
 
     // MARK: - Samenvatting voor de interface
 
-    var title: String {
-        guard containerIsCloud else { return "Lokaal" }
-        return account.isAvailable ? "iCloud" : "Lokaal"
-    }
+    /// Volgt de keuze, niet het account. Wie iCloud koos en niet is
+    /// ingelogd, staat op iCloud dat niet werkt — niet op lokaal.
+    var title: String { containerIsCloud ? "iCloud" : "Lokaal" }
 
     var detail: String {
         guard containerIsCloud else { return "Alleen op dit apparaat" }
-        guard account.isAvailable else { return account.summary }
-        if let lastSync {
-            if lastSync.succeeded {
-                return "Bijgewerkt \(lastSync.at.formatted(.dateTime.hour().minute()))"
+        switch account {
+        case .unknown:
+            return "iCloud wordt gecontroleerd"
+        case .available:
+            if let lastSync {
+                if lastSync.succeeded {
+                    return "Bijgewerkt \(lastSync.at.formatted(.dateTime.hour().minute()))"
+                }
+                return lastSync.error ?? "De laatste synchronisatie ging mis"
             }
-            return lastSync.error ?? "De laatste synchronisatie ging mis"
+            return "Synchroniseert met je andere apparaten"
+        default:
+            return "\(account.summary) · er wordt niets gesynchroniseerd"
         }
-        return "Synchroniseert met je andere apparaten"
     }
 
     var isHealthy: Bool {
-        guard containerIsCloud, account.isAvailable else { return false }
-        return lastSync?.succeeded ?? true
+        guard containerIsCloud else { return true }
+        switch account {
+        case .unknown: return true
+        case .available: return lastSync?.succeeded ?? true
+        default: return false
+        }
     }
 
     // MARK: - Bijhouden
 
+    /// Mag vaker worden aangeroepen: bij elke nieuwe opslag opnieuw.
     @MainActor
     func start(containerIsCloud: Bool) {
+        for observer in observers { NotificationCenter.default.removeObserver(observer) }
+        observers.removeAll()
         self.containerIsCloud = containerIsCloud
-        guard containerIsCloud else { return }
-
         refresh()
+        guard containerIsCloud else { return }
 
         // Uitloggen of van account wisselen merken we zonder herstart.
         observers.append(NotificationCenter.default.addObserver(
@@ -97,21 +112,39 @@ final class CloudStatus {
             })
     }
 
+    /// Controleert het account, ook als de app lokaal draait: het keuzescherm
+    /// en de overstap moeten weten of iCloud kan.
     @MainActor
     func refresh() {
-        guard containerIsCloud else { return }
-        CKContainer(identifier: Storage.cloudContainerID).accountStatus { [weak self] status, error in
-            Task { @MainActor in
-                self?.account = switch status {
-                case .available: .available
-                case .noAccount: .noAccount
-                case .restricted: .restricted
-                case .temporarilyUnavailable:
-                    .unavailable("iCloud is tijdelijk niet bereikbaar")
-                default:
-                    .unavailable(error?.localizedDescription ?? "Status onbekend")
-                }
+        Task { await checkAccount() }
+    }
+
+    @MainActor
+    @discardableResult
+    func checkAccount() async -> Bool {
+        do {
+            let status = try await CKContainer(identifier: Storage.cloudContainerID).accountStatus()
+            account = switch status {
+            case .available: .available
+            case .noAccount: .noAccount
+            case .restricted: .restricted
+            case .temporarilyUnavailable: .unavailable("iCloud is tijdelijk niet bereikbaar")
+            default: .unavailable("Status van iCloud onbekend")
             }
+        } catch {
+            account = .unavailable(error.localizedDescription)
+        }
+        return account.isAvailable
+    }
+
+    /// Een foutcode zegt de gebruiker niets. De bekende gevallen in gewone taal.
+    private static func explain(_ error: any Error, kind: String) -> String {
+        switch (error as NSError).code {
+        case 134400:
+            // Het iCloud-account ontbreekt of is niet bruikbaar voor CloudKit.
+            "iCloud-account niet beschikbaar · er wordt niets gesynchroniseerd"
+        default:
+            "Synchroniseren (\(kind)) ging mis: \(error.localizedDescription)"
         }
     }
 
@@ -126,6 +159,10 @@ final class CloudStatus {
         lastSync = Sync(kind: kind,
                         succeeded: event.succeeded,
                         at: event.endDate ?? .now,
-                        error: event.error.map { "Synchroniseren (\(kind)) ging mis: \($0.localizedDescription)" })
+                        error: event.error.map { Self.explain($0, kind: kind) })
+        if event.type == .import, event.succeeded {
+            lastImportAt = event.endDate ?? .now
+            onImport?()
+        }
     }
 }

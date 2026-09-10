@@ -61,6 +61,7 @@ struct RootView: View {
     @State private var router = Router()
     @State private var pending = PendingAction.shared
     @State private var cloud = CloudStatus.shared
+    @Environment(StoreController.self) private var store
     @State private var showingSettings = false
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsKey.spotlight) private var spotlightEnabled = true
@@ -125,8 +126,8 @@ struct RootView: View {
                     ArchivoFont.registerIfNeeded()
                     AppTips.configure()
                     AppTips.ready = onboarded
+                    store.reroute = { map in reroute(map) }
                     BuiltInGames.seedIfNeeded(in: context)
-                    cloud.start(containerIsCloud: Storage.mode.isCloud)
                 },
                 onPendingGame: { id in
                     guard let template = templates.first(where: { $0.id == id }) else { return }
@@ -162,6 +163,29 @@ struct RootView: View {
                     }
                 }
             ))
+    }
+
+    /// Het opruimen na synchroniseren gaat een kopie verwijderen die dit
+    /// scherm misschien toont. Dan eerst naar de versie die blijft; anders
+    /// leest het scherm een verwijderd spel en valt de app om.
+    private func reroute(_ map: [PersistentIdentifier: any PersistentModel]) {
+        func kept<T: PersistentModel>(_ item: T) -> T? { map[item.persistentModelID] as? T }
+        switch router.screen {
+        case .setup(let template):
+            if let survivor = kept(template) { router.screen = .setup(survivor) }
+        case .board(let match):
+            if let survivor = kept(match) { router.screen = .board(survivor) }
+        case .card(let match):
+            if let survivor = kept(match) { router.screen = .card(survivor) }
+        case .finish(let match):
+            if let survivor = kept(match) { router.screen = .finish(survivor) }
+        case .detail(let player):
+            if let survivor = kept(player) { router.screen = .detail(survivor) }
+        case .custom(let template?):
+            if let survivor = kept(template) { router.screen = .custom(survivor) }
+        default:
+            break
+        }
     }
 
     /// Drie maten: een volle zijbalk, een smallere, en onder de 620 pt

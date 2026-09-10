@@ -87,6 +87,35 @@ struct BackupDocument: Codable {
     }
 }
 
+extension BackupDocument {
+    /// Wat er in een kopie zit, om na een overstap na te tellen.
+    struct Tally: Equatable, CustomStringConvertible {
+        var players = 0
+        var matches = 0
+        var rounds = 0
+        var entries = 0
+
+        /// Bevat deze telling minstens alles van de andere?
+        func covers(_ other: Tally) -> Bool {
+            players >= other.players && matches >= other.matches
+                && rounds >= other.rounds && entries >= other.entries
+        }
+
+        var description: String {
+            "\(players) spelers, \(matches) potjes, \(rounds) rondes, \(entries) cellen"
+        }
+    }
+
+    var tally: Tally {
+        Tally(players: players.count,
+              matches: matches.count,
+              rounds: matches.reduce(0) { $0 + $1.rounds.count },
+              entries: matches.reduce(0) { sum, match in
+                  sum + match.rounds.reduce(0) { $0 + $1.entries.count }
+              })
+    }
+}
+
 enum Backup {
 
     // MARK: - Wegschrijven
@@ -142,15 +171,52 @@ enum Backup {
     /// Schrijft de reservekopie naar een bestand dat je kunt delen of bewaren.
     @MainActor
     static func write(from context: ModelContext) throws -> URL {
-        let document = try make(from: context)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        let data = try encoder.encode(document)
-
+        let data = try encode(try make(from: context))
         let stamp = Date.now.formatted(.iso8601.year().month().day())
         let url = URL.temporaryDirectory.appending(path: "Scoreblok-reservekopie-\(stamp).json")
         try data.write(to: url, options: .atomic)
+        return url
+    }
+
+    static func encode(_ document: BackupDocument) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return try encoder.encode(document)
+    }
+
+    static func decode(_ data: Data) throws -> BackupDocument {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(BackupDocument.self, from: data)
+    }
+
+    /// Waar de automatische kopieën staan.
+    static var archiveDirectory: URL {
+        Storage.directory.appending(path: "Reservekopieen", directoryHint: .isDirectory)
+    }
+
+    /// Een kopie die de app zelf maakt vlak voor hij iets ingrijpends doet,
+    /// zoals overstappen tussen lokaal en iCloud. De tien nieuwste blijven.
+    @discardableResult
+    static func archive(_ document: BackupDocument, reason: String) throws -> URL {
+        let directory = archiveDirectory
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let stamp = Date.now.formatted(.iso8601).replacingOccurrences(of: ":", with: "-")
+        let url = directory.appending(path: "\(reason)-\(stamp).json")
+        try encode(document).write(to: url, options: .atomic)
+
+        let keys: [URLResourceKey] = [.creationDateKey]
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: keys)) ?? []
+        let newestFirst = files
+            .filter { $0.pathExtension == "json" }
+            .sorted {
+                let a = (try? $0.resourceValues(forKeys: Set(keys)).creationDate) ?? .distantPast
+                let b = (try? $1.resourceValues(forKeys: Set(keys)).creationDate) ?? .distantPast
+                return a > b
+            }
+        for old in newestFirst.dropFirst(10) { try? FileManager.default.removeItem(at: old) }
         return url
     }
 
@@ -160,28 +226,40 @@ enum Backup {
         var players = 0
         var templates = 0
         var matches = 0
+        /// Potjes die er al waren en zijn aangevuld.
+        var updatedMatches = 0
 
         var summary: String {
-            "\(players) spelers, \(templates) spellen en \(matches) potjes teruggezet."
+            var text = "\(players) spelers, \(templates) spellen en \(matches) potjes teruggezet."
+            if updatedMatches > 0 {
+                text += " \(updatedMatches) bestaande potjes aangevuld."
+            }
+            return text
         }
+    }
+
+    @MainActor
+    static func restore(from url: URL, into context: ModelContext) throws -> Result {
+        let needsAccess = url.startAccessingSecurityScopedResource()
+        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
+        return try restore(try decode(Data(contentsOf: url)), into: context)
     }
 
     /// Zet een reservekopie terug. Bestaande onderdelen worden op id herkend
     /// en bijgewerkt; wat er niet is wordt toegevoegd. Er wordt niets gewist,
     /// zodat terugzetten nooit gegevens kost.
+    ///
+    /// Een potje dat er al is wordt aangevuld: ontbrekende rondes, cellen en
+    /// kaarten komen erbij, en bij een verschil wint de versie die het laatst
+    /// gespeeld is. Voorheen werd een bestaand potje overgeslagen. Wie lokaal
+    /// verder speelde en daarna naar iCloud overstapte, raakte die rondes kwijt.
     @MainActor
-    static func restore(from url: URL, into context: ModelContext) throws -> Result {
-        let needsAccess = url.startAccessingSecurityScopedResource()
-        defer { if needsAccess { url.stopAccessingSecurityScopedResource() } }
-
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let document = try decoder.decode(BackupDocument.self, from: Data(contentsOf: url))
-
+    @discardableResult
+    static func restore(_ document: BackupDocument, into context: ModelContext) throws -> Result {
         var result = Result()
 
         var players: [UUID: Player] = [:]
-        for existing in try context.fetch(FetchDescriptor<Player>()) {
+        for existing in try context.fetch(FetchDescriptor<Player>()) where !existing.isDeleted {
             players[existing.id] = existing
         }
         for data in document.players {
@@ -202,7 +280,7 @@ enum Backup {
         }
 
         var templates: [UUID: GameTemplate] = [:]
-        for existing in try context.fetch(FetchDescriptor<GameTemplate>()) {
+        for existing in try context.fetch(FetchDescriptor<GameTemplate>()) where !existing.isDeleted {
             templates[existing.id] = existing
         }
         for data in document.templates {
@@ -233,8 +311,18 @@ enum Backup {
             result.templates += 1
         }
 
-        let existingMatches = Set(try context.fetch(FetchDescriptor<Match>()).map(\.id))
-        for data in document.matches where !existingMatches.contains(data.id) {
+        var existingMatches: [UUID: Match] = [:]
+        for match in try context.fetch(FetchDescriptor<Match>()) where !match.isDeleted {
+            existingMatches[match.id] = match
+        }
+        for data in document.matches {
+            if let match = existingMatches[data.id] {
+                if merge(data, into: match, players: players, in: context) {
+                    result.updatedMatches += 1
+                }
+                continue
+            }
+
             let template = GameTemplate(name: data.gameName, mono: data.mono, mode: .roundsCumulative)
             let match = Match(template: template)
             match.id = data.id
@@ -282,10 +370,101 @@ enum Backup {
                 card.match = match
                 match.cards.append(card)
             }
+            existingMatches[data.id] = match
             result.matches += 1
         }
 
         Storage.save(context)
         return result
+    }
+
+    /// Vult een bestaand potje aan met wat de kopie meer heeft. Verwijdert
+    /// nooit iets: een lege cel in de kopie wist geen ingevulde cel.
+    @MainActor
+    private static func merge(_ data: BackupDocument.MatchData, into match: Match,
+                              players: [UUID: Player], in context: ModelContext) -> Bool {
+        var changed = false
+        let incomingIsNewer = data.lastPlayedAt > match.lastPlayedAt
+
+        if match.endedAt == nil, let ended = data.endedAt {
+            match.endedAt = ended
+            changed = true
+        }
+        if incomingIsNewer {
+            if match.abandonedAt != data.abandonedAt { match.abandonedAt = data.abandonedAt }
+            match.lastPlayedAt = data.lastPlayedAt
+            changed = true
+        }
+
+        let seated = Set(match.players.map(\.id))
+        let missing = data.playerIDs.filter { !seated.contains($0) }.compactMap { players[$0] }
+        if !missing.isEmpty {
+            match.players.append(contentsOf: missing)
+            changed = true
+        }
+        for id in data.seatOrder where !match.seatOrder.contains(id) {
+            match.seatOrder.append(id)
+            changed = true
+        }
+
+        for roundData in data.rounds {
+            let round: MatchRound
+            if let existing = match.rounds.first(where: { $0.index == roundData.index && !$0.isDeleted }) {
+                round = existing
+            } else {
+                round = MatchRound(index: roundData.index)
+                round.createdAt = roundData.createdAt
+                context.insert(round)
+                round.match = match
+                match.rounds.append(round)
+                changed = true
+            }
+            for entryData in roundData.entries {
+                if let entry = round.entries.first(where: { $0.playerID == entryData.playerID && !$0.isDeleted }) {
+                    if let incoming = entryData.value, incoming != entry.value,
+                       entry.value == nil || incomingIsNewer {
+                        entry.value = incoming
+                        changed = true
+                    }
+                    if incomingIsNewer, entry.jokers != entryData.jokers {
+                        entry.jokers = entryData.jokers
+                        changed = true
+                    }
+                } else {
+                    let entry = ScoreEntry(playerID: entryData.playerID, value: entryData.value)
+                    entry.jokers = entryData.jokers
+                    context.insert(entry)
+                    round.entries.append(entry)
+                    changed = true
+                }
+            }
+        }
+
+        for cardData in data.cards {
+            if let card = match.cards.first(where: { $0.playerID == cardData.playerID && !$0.isDeleted }) {
+                let isEmpty = card.columnKeys.isEmpty && card.bonusKeys.isEmpty
+                    && card.numbers.isEmpty && card.penaltyCount == 0
+                guard incomingIsNewer || isEmpty else { continue }
+                if card.columnKeys != cardData.columnKeys || card.bonusKeys != cardData.bonusKeys
+                    || card.numbers != cardData.numbers || card.penaltyCount != cardData.penaltyCount {
+                    card.columnKeys = cardData.columnKeys
+                    card.bonusKeys = cardData.bonusKeys
+                    card.numbers = cardData.numbers
+                    card.penaltyCount = cardData.penaltyCount
+                    changed = true
+                }
+            } else {
+                let card = ScoreCard(playerID: cardData.playerID)
+                card.columnKeys = cardData.columnKeys
+                card.bonusKeys = cardData.bonusKeys
+                card.numbers = cardData.numbers
+                card.penaltyCount = cardData.penaltyCount
+                context.insert(card)
+                card.match = match
+                match.cards.append(card)
+                changed = true
+            }
+        }
+        return changed
     }
 }

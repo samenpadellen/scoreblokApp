@@ -2,11 +2,22 @@ import AppIntents
 import Foundation
 import SwiftData
 
-/// Toegang tot de opslag buiten de app om, voor Siri en Shortcuts.
+/// Toegang tot de opslag buiten de app om, voor Siri en Shortcuts. Altijd
+/// de opslag die de app zelf gebruikt, nooit een eigen tweede venster op een
+/// bestand.
 enum IntentStore {
+    enum Failure: Error, CustomLocalizedStringResourceConvertible {
+        case notChosen
+
+        var localizedStringResource: LocalizedStringResource {
+            "Open Scoreblok eerst en kies waar je potjes staan."
+        }
+    }
+
     @MainActor
     static func context() throws -> ModelContext {
-        ModelContext(Storage.shared)
+        guard let container = StoreController.shared.container else { throw Failure.notChosen }
+        return container.mainContext
     }
 }
 

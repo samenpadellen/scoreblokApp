@@ -45,7 +45,10 @@ struct HistoryScreen: View {
                 filterBar
                 HeavyRule()
 
-                if let opened {
+                // Na samenvoegen kan het geopende potje een verwijderde kopie
+                // zijn. Dan terug naar de lijst; isDeleted leest niets uit het
+                // verwijderde potje zelf.
+                if let opened, !opened.isDeleted {
                     detail(opened)
                 } else {
                     list
