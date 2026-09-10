@@ -143,7 +143,7 @@ struct HistoryScreen: View {
                             .foregroundStyle(M.inkAlpha(0.5))
                             .frame(width: 74, alignment: .leading)
 
-                        GameMark(mono: match.mono, size: 34)
+                        GameMark(mono: match.mono, name: match.gameName, size: 34)
 
                         VStack(alignment: .leading, spacing: 5) {
                             Text(match.gameName)
@@ -192,7 +192,7 @@ struct HistoryScreen: View {
     private func compactRow(_ match: Match) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                GameMark(mono: match.mono, size: 30)
+                GameMark(mono: match.mono, name: match.gameName, size: 30)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(match.gameName)
                         .font(M.font(15, .extraBold))

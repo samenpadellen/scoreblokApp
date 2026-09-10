@@ -37,7 +37,7 @@ struct NowPlayingBar: View {
     /// herkennen welk potje het is.
     private var compactLayout: some View {
         HStack(spacing: 12) {
-            GameMark(mono: match.mono, background: M.red, size: 32)
+            GameMark(mono: match.mono, name: match.gameName, background: M.red, size: 32)
             VStack(alignment: .leading, spacing: 2) {
                 Text(match.gameName)
                     .font(M.font(14.5, .extraBold))
@@ -65,7 +65,7 @@ struct NowPlayingBar: View {
     private var wideLayout: some View {
         HStack(spacing: 0) {
             HStack(spacing: 14) {
-                GameMark(mono: match.mono, background: M.red, size: 34)
+                GameMark(mono: match.mono, name: match.gameName, background: M.red, size: 34)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text("POTJE OPEN")

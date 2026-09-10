@@ -79,9 +79,10 @@ struct CupboardScreen: View {
         let played = matches.filter { $0.gameName == template.name && $0.counts }.count
 
         return HStack(spacing: 14) {
-            GameMark(mono: template.mono,
+            // Groter dan elders: in de kast zoek je een spel op zijn doos.
+            GameMark(mono: template.mono, name: template.name,
                      background: putAway ? M.inkAlpha(0.35) : M.ink,
-                     size: isCompact ? 30 : 34)
+                     size: isCompact ? 40 : 44)
             VStack(alignment: .leading, spacing: 3) {
                 Text(template.name)
                     .font(M.font(15, .semiBold))

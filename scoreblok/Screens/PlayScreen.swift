@@ -225,7 +225,7 @@ struct PlayScreen: View {
             router.screen = match.mode == .scorecard ? .card(match) : .board(match)
         } content: {
             HStack(spacing: 14) {
-                GameMark(mono: match.mono, size: 30)
+                GameMark(mono: match.mono, name: match.gameName, size: 30)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(match.gameName)
                         .font(M.font(14.5, .extraBold))
@@ -265,7 +265,7 @@ struct PlayScreen: View {
             start(template)
         } content: {
             VStack(alignment: .leading, spacing: 0) {
-                GameMark(mono: template.mono,
+                GameMark(mono: template.mono, name: template.name,
                          background: template.id == recent.first?.id ? M.red : M.ink,
                          size: 44)
                     .padding(.bottom, 14)
@@ -290,7 +290,7 @@ struct PlayScreen: View {
             start(template)
         } content: {
             HStack(spacing: 14) {
-                GameMark(mono: template.mono, size: 34)
+                GameMark(mono: template.mono, name: template.name, size: 34)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(template.name)
                         .font(M.font(14.5, .semiBold))
@@ -314,7 +314,7 @@ struct PlayScreen: View {
             start(template)
         } content: {
             HStack(spacing: 14) {
-                GameMark(mono: template.mono,
+                GameMark(mono: template.mono, name: template.name,
                          background: prominent && template.id == recent.first?.id ? M.red : M.ink,
                          size: prominent ? 36 : 28)
                 if prominent {

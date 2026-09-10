@@ -68,17 +68,30 @@ struct HeavyRule: View {
 /// Monogram van een spel — twee letters op inkt of rood.
 struct GameMark: View {
     let mono: String
+    /// De naam van het spel. Staat er een afbeelding voor klaar, dan komt die
+    /// in de plaats van het monogram.
+    var name: String?
     var background: Color = M.ink
     var foreground: Color = M.paper
     var size: CGFloat = 44
 
     var body: some View {
-        Text(mono)
-            .font(M.font(size * 0.34, .extraBold))
-            .tracking(em: 0.02, size: size * 0.34)
-            .foregroundStyle(foreground)
-            .frame(width: size, height: size)
-            .background(background)
+        if let name, let artwork = GameArtwork.image(for: name) {
+            Image(uiImage: artwork)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size, height: size)
+                .clipped()
+                .overlay(Rectangle().stroke(M.inkAlpha(0.12), lineWidth: 1))
+                .accessibilityLabel(name)
+        } else {
+            Text(mono)
+                .font(M.font(size * 0.34, .extraBold))
+                .tracking(em: 0.02, size: size * 0.34)
+                .foregroundStyle(foreground)
+                .frame(width: size, height: size)
+                .background(background)
+        }
     }
 }
 

@@ -131,7 +131,7 @@ struct OnboardingPage {
             kicker: "Welkom",
             title: "Punten bijhouden,\nen daarna weten\nwat het waard was.",
             body: "Scoreblok houdt de telling bij aan tafel en onthoudt wat er is gebeurd. Geen losse blaadjes meer, en na een half jaar zie je nog steeds wie er wint.",
-            points: ["Elf spellen staan klaar",
+            points: ["Elf spellen klaar, en meer in de spellenkast",
                      "Je hoeft niets in te stellen om te beginnen",
                      "Alles blijft op je eigen apparaten"],
             art: .mark),

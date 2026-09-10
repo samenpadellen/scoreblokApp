@@ -67,6 +67,52 @@ enum BuiltInGames {
         )
     }
 
+    /// Wingspan telt aan het eind zes soorten punten op, zoals op het
+    /// scoreblok in de doos.
+    static func wingspan() -> ScorecardSpec {
+        let categories = ["Vogels", "Bonuskaarten", "Rondedoelen",
+                          "Eieren", "Voedsel op kaarten", "Weggestopte kaarten"]
+        return ScorecardSpec(
+            columnsTitle: "Zes categorieën — vul de punten per categorie in",
+            columns: categories.map {
+                ScoreColumn(key: $0, label: $0, kind: .number, value: 0, section: "punten")
+            },
+            bonusesTitle: "Bonussen",
+            bonuses: [],
+            penaltyTitle: nil,
+            penaltyLabel: nil,
+            penaltyPerUnit: 0,
+            penaltyMax: 0,
+            sectionBonus: nil
+        )
+    }
+
+    /// Cascadia: punten per dier volgens de scoringskaarten, punten per
+    /// grootste habitat, de bonus voor de grootste habitats en de
+    /// overgebleven natuurfiches.
+    static func cascadia() -> ScorecardSpec {
+        var columns = ["Beren", "Wapiti's", "Zalmen", "Haviken", "Vossen"].map {
+            ScoreColumn(key: $0, label: $0, kind: .number, value: 0, section: "dieren")
+        }
+        columns += ["Bergen", "Bossen", "Prairies", "Moerassen", "Rivieren"].map {
+            ScoreColumn(key: $0, label: $0, kind: .number, value: 0, section: "habitats")
+        }
+        columns += ["Habitatbonus", "Natuurfiches"].map {
+            ScoreColumn(key: $0, label: $0, kind: .number, value: 0, section: "overig")
+        }
+        return ScorecardSpec(
+            columnsTitle: "Dieren, habitats en bonussen — vul de punten in",
+            columns: columns,
+            bonusesTitle: "Bonussen",
+            bonuses: [],
+            penaltyTitle: nil,
+            penaltyLabel: nil,
+            penaltyPerUnit: 0,
+            penaltyMax: 0,
+            sectionBonus: nil
+        )
+    }
+
     /// De opdrachten van Jokeren, in speelvolgorde. Elke ronde vraagt een
     /// andere combinatie; wie niet uitkomt houdt zijn kaarten. Aan het eind
     /// wint wie de minste kaarten overhield.
@@ -83,6 +129,12 @@ enum BuiltInGames {
     static func all() -> [GameTemplate] {
         var index = 0
         func next() -> Int { defer { index += 1 }; return index }
+        /// In de spellenkast: beschikbaar, maar niet in het overzicht tot je
+        /// het eruit haalt.
+        func inCupboard(_ template: GameTemplate) -> GameTemplate {
+            template.isPutAway = true
+            return template
+        }
 
         return [
             GameTemplate(name: "Jokeren", mono: "JO", mode: .roundsCumulative,
@@ -140,7 +192,108 @@ enum BuiltInGames {
                          unitLabel: "kaarten",
                          isBuiltIn: true,
                          subtitleNote: "open einde · meeste kaarten wint",
-                         sortIndex: next())
+                         sortIndex: next()),
+
+            // MARK: In de kast
+            //
+            // Populaire bord- en gezelschapsspellen. Ze staan klaar maar
+            // niet in beeld: wie ze speelt haalt ze uit de spellenkast.
+            // Rummikub, 30 Seconds en Catan (Kolonisten) staan hierboven al.
+
+            inCupboard(GameTemplate(
+                name: "Monopoly", mono: "MO", mode: .winnerOnly,
+                minPlayers: 2, maxPlayers: 8, isBuiltIn: true,
+                subtitleNote: "wie overblijft wint", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Ticket to Ride Europe", mono: "TR", mode: .finalScore,
+                winsByLowest: false, minPlayers: 2, maxPlayers: 5, isBuiltIn: true,
+                subtitleNote: "eindscore · routes, kaarten en stations", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Mens Erger Je Niet", mono: "ME", mode: .winnerOnly,
+                minPlayers: 2, maxPlayers: 6, isBuiltIn: true,
+                subtitleNote: "eerst alle pionnen thuis", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Risk", mono: "RI", mode: .winnerOnly,
+                minPlayers: 2, maxPlayers: 6, isBuiltIn: true,
+                subtitleNote: "verover de wereld", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Codenames", mono: "CN", mode: .winnerOnly,
+                minPlayers: 2, maxPlayers: 8, isBuiltIn: true,
+                subtitleNote: "twee teams · alleen winnaar", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Stratego", mono: "ST", mode: .winnerOnly,
+                minPlayers: 2, maxPlayers: 2, isBuiltIn: true,
+                subtitleNote: "vlag veroverd · twee spelers", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Wingspan", mono: "WS", mode: .scorecard,
+                winsByLowest: false, minPlayers: 1, maxPlayers: 5,
+                scorecard: wingspan(), isBuiltIn: true,
+                subtitleNote: "scorekaart · 6 categorieën", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Cluedo", mono: "CL", mode: .winnerOnly,
+                minPlayers: 3, maxPlayers: 6, isBuiltIn: true,
+                subtitleNote: "wie de zaak oplost", sortIndex: next())),
+
+            // Per ronde krijgt iedereen punten; het spel eindigt zodra
+            // iemand 30 punten heeft.
+            inCupboard(GameTemplate(
+                name: "Dixit", mono: "DX", mode: .roundsCumulative,
+                roundCount: 0, winsByLowest: false, minPlayers: 3, maxPlayers: 8,
+                isBuiltIn: true, subtitleNote: "tot iemand 30 punten heeft", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Azul", mono: "AZ", mode: .finalScore,
+                winsByLowest: false, minPlayers: 2, maxPlayers: 4, isBuiltIn: true,
+                subtitleNote: "eindscore · muur en bonussen", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Carcassonne", mono: "CA", mode: .finalScore,
+                winsByLowest: false, minPlayers: 2, maxPlayers: 5, isBuiltIn: true,
+                subtitleNote: "eindscore · wegen, steden en kloosters", sortIndex: next())),
+
+            // Samenwerken: iedereen wint of verliest samen. De app kent nog
+            // geen samenspelmodus, dus dit telt als een gewoon potje.
+            inCupboard(GameTemplate(
+                name: "Pandemic", mono: "PA", mode: .winnerOnly,
+                minPlayers: 2, maxPlayers: 4, isBuiltIn: true,
+                subtitleNote: "samen winnen of verliezen", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Exploding Kittens", mono: "EK", mode: .winnerOnly,
+                minPlayers: 2, maxPlayers: 5, isBuiltIn: true,
+                subtitleNote: "wie niet ontploft wint", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Ark Nova", mono: "AN", mode: .finalScore,
+                winsByLowest: false, minPlayers: 1, maxPlayers: 4, isBuiltIn: true,
+                subtitleNote: "eindscore · aantrekking en natuurbehoud", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Cascadia", mono: "CS", mode: .scorecard,
+                winsByLowest: false, minPlayers: 1, maxPlayers: 4,
+                scorecard: cascadia(), isBuiltIn: true,
+                subtitleNote: "scorekaart · dieren en habitats", sortIndex: next())),
+
+            // Rondes tellen op tot iemand 100 punten haalt; wie dan het
+            // minst heeft wint. Een ronde kan negatief uitvallen.
+            inCupboard(GameTemplate(
+                name: "Skyjo", mono: "SK", mode: .roundsCumulative,
+                roundCount: 0, winsByLowest: true, allowNegative: true,
+                minPlayers: 2, maxPlayers: 8, isBuiltIn: true,
+                subtitleNote: "tot iemand 100 haalt · laagste wint", sortIndex: next())),
+
+            inCupboard(GameTemplate(
+                name: "Hitster", mono: "HI", mode: .finalScore,
+                winsByLowest: false, minPlayers: 2, maxPlayers: 10,
+                unitLabel: "kaarten", isBuiltIn: true,
+                subtitleNote: "eerst 10 kaarten op volgorde", sortIndex: next()))
         ]
     }
 

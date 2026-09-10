@@ -12,8 +12,10 @@ enum Insights {
     static let unlockAt = 10
 
     /// Onder dit aantal potjes per kant van een vergelijking zegt een
-    /// verschil te weinig om te tonen.
-    private static let minimumSample = 3
+    /// verschil te weinig om te tonen. Met drie kwamen er op testdata
+    /// meteen uitschieters als +67 procentpunt uit; vijf is strenger, en
+    /// dan verschijnen er in het begin minder patronen.
+    static let minimumSample = 5
 
     struct Progress: Identifiable {
         let gameName: String

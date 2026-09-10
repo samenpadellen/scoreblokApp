@@ -121,7 +121,7 @@ struct InsightsScreen: View {
     }
 
     private var quiet: some View {
-        Text("Nog geen opvallende patronen. Iedereen doet het ongeveer even goed, waar iedereen ook zit.")
+        Text("Nog geen patronen die sterk genoeg zijn. Elke vergelijking telt pas vanaf \(Insights.minimumSample) potjes per kant; hoe vaker je speelt, hoe meer er verschijnt.")
             .font(M.font(14, .regular))
             .foregroundStyle(M.inkAlpha(0.65))
             .fixedSize(horizontal: false, vertical: true)

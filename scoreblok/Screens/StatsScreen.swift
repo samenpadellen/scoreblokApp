@@ -516,7 +516,7 @@ struct StatsScreen: View {
             router.screen = .insights(item.gameName)
         } content: {
             HStack(spacing: 14) {
-                GameMark(mono: item.mono, background: M.red, size: 34)
+                GameMark(mono: item.mono, name: item.gameName, background: M.red, size: 34)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.gameName)
                         .font(M.font(15, .semiBold))
@@ -537,7 +537,7 @@ struct StatsScreen: View {
 
     private func lockedRow(_ item: Insights.Progress) -> some View {
         HStack(spacing: 14) {
-            GameMark(mono: item.mono, background: M.inkAlpha(0.3), size: 34)
+            GameMark(mono: item.mono, name: item.gameName, background: M.inkAlpha(0.3), size: 34)
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(item.gameName)
