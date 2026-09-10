@@ -4,11 +4,14 @@ import SwiftData
 
 struct PlayScreen: View {
     @Environment(Router.self) private var router
+    @Environment(\.modelContext) private var context
+    @AppStorage(DemoData.matchesKey) private var demoMatches = ""
     @Query(sort: \GameTemplate.sortIndex) private var allTemplates: [GameTemplate]
     @Query(sort: \Match.startedAt, order: .reverse) private var matches: [Match]
     @Query private var players: [Player]
     @Environment(\.isNarrow) private var isNarrow
     @Environment(\.isCompact) private var isCompact
+    @AppStorage(SettingsKey.startGuideHidden) private var startGuideHidden = false
 
     private var activePlayers: [Player] { players.filter { !$0.isArchived } }
     /// Wat er op de plank staat; de rest zit in de spellenkast.
@@ -44,12 +47,22 @@ struct PlayScreen: View {
                 header
                 HeavyRule()
 
+                if !demoMatches.isEmpty {
+                    demoBanner
+                    HeavyRule()
+                }
+
                 if let first = openMatches.first {
                     resumeCard(first)
                     ForEach(openMatches.dropFirst()) { match in
                         Hairline()
                         openRow(match)
                     }
+                    HeavyRule()
+                }
+
+                if showsStartGuide {
+                    startGuide
                     HeavyRule()
                 }
 
@@ -83,7 +96,7 @@ struct PlayScreen: View {
                     cupboardRow
                 }
 
-                if players.isEmpty {
+                if players.isEmpty && !showsStartGuide {
                     emptyHint
                 }
             }
@@ -118,6 +131,157 @@ struct PlayScreen: View {
                 .padding(EdgeInsets(top: 24, leading: 28, bottom: 18, trailing: 28))
             }
         }
+    }
+
+    // MARK: - Aan de slag
+
+    private var hasCounted: Bool { matches.contains(where: \.counts) }
+
+    /// Tot het eerste potje is afgerond, of tot je het wegklikt.
+    private var showsStartGuide: Bool { !startGuideHidden && !hasCounted }
+
+    private struct GuideStep {
+        let title: String
+        let hint: String
+        let done: Bool
+        let action: () -> Void
+    }
+
+    private var guideSteps: [GuideStep] {
+        let enoughPlayers = activePlayers.count >= 2
+        return [
+            GuideStep(title: "Voeg jezelf en je medespelers toe",
+                      hint: enoughPlayers ? "\(activePlayers.count) spelers staan klaar"
+                                          : "Bij Spelers, of straks bij het opzetten van een potje",
+                      done: enoughPlayers,
+                      action: { router.screen = .players }),
+            GuideStep(title: "Start je eerste potje",
+                      hint: matches.isEmpty ? "Kies hieronder een spel en tik op Start potje"
+                                            : "Er loopt een potje. Tik om verder te tellen",
+                      done: !matches.isEmpty,
+                      action: {
+                          if let open = openMatches.first { resume(open) } else if let game = recent.first { start(game) }
+                      }),
+            GuideStep(title: "Rond het potje af",
+                      hint: "Tik op Afronden als het spel voorbij is. Dan zie je de uitslag en tellen de statistieken mee",
+                      done: hasCounted,
+                      action: { if let open = openMatches.first { resume(open) } })
+        ]
+    }
+
+    private var startGuide: some View {
+        let steps = guideSteps
+        let doneCount = steps.filter(\.done).count
+        let next = steps.firstIndex { !$0.done }
+        let inset: CGFloat = isCompact ? 20 : 28
+
+        return VStack(spacing: 0) {
+            HStack(spacing: 9) {
+                Rectangle().fill(M.red).frame(width: 7, height: 7)
+                Text("Aan de slag · \(doneCount) van \(steps.count) gedaan".uppercased())
+                    .font(M.font(11.5, .extraBold))
+                    .tracking(em: 0.12, size: 11.5)
+                    .foregroundStyle(M.ink)
+                Spacer(minLength: 8)
+                Button {
+                    withAnimation(M.Motion.settle) { startGuideHidden = true }
+                } label: {
+                    Text("Verbergen")
+                        .font(M.font(11.5, .semiBold))
+                        .foregroundStyle(M.inkAlpha(0.55))
+                        .frame(minHeight: 32)
+                        .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(EdgeInsets(top: 6, leading: inset, bottom: 6, trailing: inset))
+            .background(M.paperDeep)
+            BarMeter(fraction: Double(doneCount) / Double(steps.count), height: 3, fill: M.red)
+
+            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                RowButton(isActive: index == next, minHeight: isCompact ? 66 : 70) {
+                    step.action()
+                } content: {
+                    HStack(spacing: 14) {
+                        HardCheckbox(isOn: step.done)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(step.title)
+                                .font(M.font(isCompact ? 14.5 : 15.5, index == next ? .extraBold : .semiBold))
+                                .foregroundStyle(step.done ? M.inkAlpha(0.45) : M.ink)
+                                .strikethrough(step.done, color: M.inkAlpha(0.35))
+                            Text(step.hint)
+                                .font(M.font(isCompact ? 11.5 : 12, .regular))
+                                .foregroundStyle(M.inkAlpha(0.55))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        if !step.done {
+                            Text("→")
+                                .font(M.font(15, .semiBold))
+                                .foregroundStyle(index == next ? M.red : M.inkAlpha(0.3))
+                        }
+                    }
+                    .padding(.horizontal, inset)
+                    .padding(.vertical, 10)
+                }
+                if index < steps.count - 1 { Hairline() }
+            }
+
+            Hairline()
+            Button {
+                withAnimation(M.Motion.settle) { _ = DemoData.fill(in: context) }
+            } label: {
+                HStack(spacing: 8) {
+                    Text("Liever eerst rondkijken? Vul de app met voorbeeldpotjes")
+                        .font(M.font(isCompact ? 12 : 12.5, .extraBold))
+                        .foregroundStyle(M.inkAlpha(0.7))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Text("→")
+                        .font(M.font(14, .semiBold))
+                        .foregroundStyle(M.inkAlpha(0.5))
+                }
+                .padding(.horizontal, inset)
+                .frame(minHeight: 48)
+                .contentShape(.rect)
+            }
+            .buttonStyle(PressableStyle(scale: 0.995))
+        }
+        .transition(.opacity)
+    }
+
+    /// Duidelijk dat het voorbeelden zijn, met de weg terug ernaast.
+    private var demoBanner: some View {
+        let inset: CGFloat = isCompact ? 20 : 28
+        return AnyLayout(isCompact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                                   : AnyLayout(HStackLayout(alignment: .center, spacing: 16))) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("VOORBEELDPOTJES")
+                    .font(M.font(10.5, .extraBold))
+                    .tracking(em: 0.14, size: 10.5)
+                    .foregroundStyle(M.red)
+                Text("Je kijkt naar voorbeelden")
+                    .font(M.font(isCompact ? 16 : 17, .extraBold))
+                    .foregroundStyle(M.ink)
+                Text("Zo zie je hoe statistieken en geschiedenis eruitzien. Zelf beginnen? Haal ze weg; je eigen spelers en potjes blijven staan.")
+                    .font(M.font(12.5, .regular))
+                    .foregroundStyle(M.inkAlpha(0.65))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if !isCompact { Spacer(minLength: 8) }
+            OutlineButton(title: "Verwijder voorbeelden", tint: M.red) {
+                withAnimation(M.Motion.settle) { _ = DemoData.remove(in: context) }
+            }
+        }
+        .padding(.horizontal, inset)
+        .padding(.vertical, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(M.activeWash)
+        .overlay(alignment: .leading) { Rectangle().fill(M.red).frame(width: M.activeEdge) }
+    }
+
+    private func resume(_ match: Match) {
+        router.screen = match.mode == .scorecard ? .card(match) : .board(match)
     }
 
     // MARK: - Doorgaan met een open potje

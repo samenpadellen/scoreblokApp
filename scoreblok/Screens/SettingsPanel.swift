@@ -19,6 +19,7 @@ struct SettingsPanel: View {
     @AppStorage(SettingsKey.statsPeriod) private var statsPeriod = StatsPeriod.days90.rawValue
     @AppStorage(SettingsKey.liveActivity) private var liveActivity = true
     @AppStorage(SettingsKey.matchReport) private var matchReport = true
+    @AppStorage(DemoData.matchesKey) private var demoMatches = ""
 
     @State private var backupURL: URL?
     @State private var cloud = CloudStatus.shared
@@ -260,6 +261,22 @@ struct SettingsPanel: View {
                         .font(M.font(12.5, .semiBold))
                         .foregroundStyle(isError ? M.red : M.ink)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if !demoMatches.isEmpty {
+                    HStack(spacing: 12) {
+                        Text("Er staan voorbeeldpotjes in de app.")
+                            .font(M.font(12.5, .semiBold))
+                            .foregroundStyle(M.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 8)
+                        OutlineButton(title: "Verwijder voorbeelden", tint: M.red) {
+                            leaveMatchScreens()
+                            let removed = DemoData.remove(in: context)
+                            message = removed == 1 ? "1 voorbeeldpotje verwijderd." : "\(removed) voorbeeldpotjes verwijderd."
+                            isError = false
+                        }
+                    }
                 }
 
                 Text("Een reservekopie is één bestand met alle spelers, spellen en potjes. Terugzetten voegt toe en werkt bij; er wordt nooit iets gewist.")

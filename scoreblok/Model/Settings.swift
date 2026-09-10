@@ -16,6 +16,8 @@ enum SettingsKey {
     static let onboarded = "instelling.rondleidingGezien"
     /// Staat er een verzoek open om de tips weer te tonen?
     static let tipsReset = "instelling.tipsHerstellen"
+    /// Het lijstje "Aan de slag" op Spelen is weggeklikt.
+    static let startGuideHidden = "instelling.aanDeSlagVerborgen"
     /// De stand van het lopende potje op het toegangsscherm en in het Dynamic Island.
     static let liveActivity = "instelling.liveActivity"
     /// Een kort verslag van Apple Intelligence onder de eindstand.

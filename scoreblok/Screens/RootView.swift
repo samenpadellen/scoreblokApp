@@ -110,25 +110,10 @@ struct RootView: View {
             .modifier(SamenHosting(request: $samenRequest,
                                    open: { showingSettings = false; samenRequest = .host },
                                    leave: leaveMatchScreens))
-            .overlay {
-                if showsTour {
-                    OnboardingView { exit in
-                        onboarded = true
-                        showingTour = false
-                        AppTips.ready = true
-                        switch exit {
-                        case .players: router.screen = .players
-                        case .games: router.screen = .play
-                        case .none: break
-                        }
-                    }
-                    .transition(.opacity)
-                }
-            }
+            .modifier(IntroHosting(onboarded: $onboarded, showingTour: $showingTour, router: router))
             .onChange(of: showsTour) { _, showing in
                 if showing { AppTips.ready = false }
             }
-            .animation(.snappy(duration: 0.25), value: showsTour)
             .environment(\.openTour) { showingTour = true }
             .modifier(LifecycleActions(
                 onScenePhase: { phase in
@@ -509,6 +494,47 @@ struct RootView: View {
         case .insights(let gameName):
             InsightsScreen(gameName: gameName).id(gameName)
         }
+    }
+}
+
+/// Bij de eerste start de stappen die de app klaarzetten; later, op verzoek
+/// uit Instellingen, de rondleiding met uitleg.
+private struct IntroHosting: ViewModifier {
+    @Binding var onboarded: Bool
+    @Binding var showingTour: Bool
+    let router: Router
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if !onboarded {
+                    FirstRunView { exit in
+                        onboarded = true
+                        AppTips.ready = true
+                        switch exit {
+                        case .setup(let template, let players):
+                            PendingAction.shared.setupPlayerIDs = players
+                            router.screen = .setup(template)
+                        case .play:
+                            router.screen = .play
+                        }
+                    }
+                    .transition(.opacity)
+                } else if showingTour {
+                    OnboardingView { exit in
+                        showingTour = false
+                        AppTips.ready = true
+                        switch exit {
+                        case .players: router.screen = .players
+                        case .games: router.screen = .play
+                        case .none: break
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .animation(M.Motion.settle, value: onboarded)
+            .animation(M.Motion.settle, value: showingTour)
     }
 }
 

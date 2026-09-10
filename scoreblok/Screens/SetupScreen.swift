@@ -412,7 +412,12 @@ struct SetupScreen: View {
         allowNegative = template.allowNegative
         eliminationLimit = template.eliminationLimit
         tracksJokers = template.supportsJokers
-        if chosen.isEmpty { repeatLastTeam() }
+        if let ids = PendingAction.shared.setupPlayerIDs {
+            PendingAction.shared.setupPlayerIDs = nil
+            chosen = ids.filter { id in roster.contains { $0.id == id } }
+        } else if chosen.isEmpty {
+            repeatLastTeam()
+        }
     }
 
     private func repeatLastTeam() {

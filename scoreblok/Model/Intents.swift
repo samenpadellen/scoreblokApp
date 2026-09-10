@@ -246,6 +246,8 @@ struct GameQuery: EntityQuery {
 final class PendingAction {
     @MainActor static let shared = PendingAction()
     var startGameID: UUID?
+    /// Na de eerste stappen: wie er bij het opzetten al aangevinkt staan.
+    var setupPlayerIDs: [UUID]?
 }
 
 // MARK: - Kant-en-klare zinnen

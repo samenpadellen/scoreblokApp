@@ -131,7 +131,7 @@ struct OnboardingPage {
             kicker: "Welkom",
             title: "Punten bijhouden,\nen daarna weten\nwat het waard was.",
             body: "Scoreblok houdt de telling bij aan tafel en onthoudt wat er is gebeurd. Geen losse blaadjes meer, en na een half jaar zie je nog steeds wie er wint.",
-            points: ["Elf spellen klaar, en meer in de spellenkast",
+            points: ["Elf spellen klaar, en zeventien in de spellenkast",
                      "Je hoeft niets in te stellen om te beginnen",
                      "Alles blijft op je eigen apparaten"],
             art: .mark),
@@ -140,7 +140,7 @@ struct OnboardingPage {
             title: "Kies een spel,\nzet de spelers klaar.",
             body: "Onder Spelen staat alles wat je kunt spelen. Wat je nooit speelt zet je in de spellenkast, zodat het overzicht kort blijft. Staat jouw spel er niet bij, dan maak je het onder Eigen spel.",
             points: ["Spelen · alle spellen en de spellenkast",
-                     "Spelers · namen, avatars en hun cijfers",
+                     "Spelers · namen, foto's en hun cijfers",
                      "Eigen spel · zelf de regels bepalen"],
             art: .games),
         OnboardingPage(
@@ -156,7 +156,7 @@ struct OnboardingPage {
             title: "Een potje hoeft\nniet af.",
             body: "Leg de iPad weg en ga morgen verder. Zolang er een potje loopt blijft er onderin een balk staan die je er in één tik weer in zet, ook vanaf een ander tabblad.",
             points: ["Alles wordt bewaard zodra je iets invult",
-                     "De balk onderin brengt je terug",
+                     "De balk onderin en je toegangsscherm brengen je terug",
                      "Een potje afbreken kan ook, dat telt niet mee"],
             art: .resume),
         OnboardingPage(
@@ -165,7 +165,7 @@ struct OnboardingPage {
             body: "Statistieken toont winstpercentages, kop-tot-kop en records over de periode die je kiest. In Geschiedenis staat elk potje terug, en een scorekaart deel je als pdf.",
             points: ["Statistieken · trends en onderlinge balans",
                      "Geschiedenis · elk potje, met scorekaart",
-                     "Instellingen · iCloud, reservekopie en widgets"],
+                     "Instellingen · opslag, reservekopie en speelgroepen"],
             art: .stats)
     ]
 }

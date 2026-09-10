@@ -22,33 +22,52 @@ struct StorageChoiceView: View {
                 HeavyRule()
 
                 ScrollView {
-                    content(wide: wide)
+                    VStack(alignment: .leading, spacing: 0) {
+                        content(wide: wide)
+                        if wide {
+                            HStack {
+                                continueButton
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.top, 28)
+                        }
+                    }
                         .frame(maxWidth: 820, alignment: .leading)
                         .padding(.horizontal, wide ? 40 : 20)
                         .padding(.vertical, wide ? 36 : 24)
                         .frame(maxWidth: .infinity)
                 }
 
-                HeavyRule()
-                footer
+                if !wide {
+                    HeavyRule()
+                    footer
+                }
             }
             .background(M.paper)
         }
-        .onAppear { cloud.refresh() }
+        .onAppear {
+            cloud.refresh()
+            preselectIfOnlyChoice(cloud.account)
+        }
         // Wie tussendoor in de Instellingen-app inlogt, ziet iCloud meteen
         // beschikbaar worden.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { cloud.refresh() }
         }
+        .onChange(of: cloud.account) { _, account in preselectIfOnlyChoice(account) }
+    }
+
+    /// Kan iCloud hier niet, dan is er maar één keuze en staat die alvast
+    /// aan. Anders bleef de knop grijs en leek de app vast te zitten.
+    private func preselectIfOnlyChoice(_ account: CloudStatus.Account) {
+        guard selection == nil, account != .unknown, !account.isAvailable else { return }
+        withAnimation(M.Motion.quick) { selection = .local }
     }
 
     private func content(wide: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("OPSLAG")
-                .font(M.font(10, .semiBold))
-                .tracking(em: 0.14, size: 10)
-                .foregroundStyle(M.red)
-                .padding(.bottom, 14)
+            IntroSteps(current: 1, title: "Opslag")
+                .padding(.bottom, wide ? 30 : 22)
 
             Text("Waar bewaar je\njouw potjes?")
                 .font(M.font(wide ? 36 : 28, .extraBold))
@@ -57,7 +76,7 @@ struct StorageChoiceView: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 12)
 
-            Text("Kies één plek. De app gebruikt nooit allebei tegelijk, zodat je altijd weet waar je potjes staan.")
+            Text("Welkom bij Scoreblok. In vier korte stappen staat je eerste potje klaar. Eerst de opslag: kies één plek. De app gebruikt nooit allebei tegelijk, zodat je altijd weet waar je potjes staan.")
                 .font(M.font(15, .regular))
                 .foregroundStyle(M.inkAlpha(0.72))
                 .lineSpacing(4)
@@ -146,6 +165,11 @@ struct StorageChoiceView: View {
                     .font(M.font(14.5, .semiBold))
                     .foregroundStyle(available ? M.ink : M.inkAlpha(0.45))
                     .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 4)
+                Text(choice.whenToPick)
+                    .font(M.font(12.5, .regular))
+                    .foregroundStyle(available ? M.inkAlpha(0.6) : M.inkAlpha(0.35))
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 12)
 
                 VStack(alignment: .leading, spacing: 0) {
@@ -181,14 +205,18 @@ struct StorageChoiceView: View {
     private var footer: some View {
         HStack {
             Spacer(minLength: 0)
-            SolidButton(title: selection.map { "Doorgaan met \($0.title)" } ?? "Kies waar je potjes staan",
-                        enabled: canContinue) {
-                guard let selection else { return }
-                Task { await store.choose(selection) }
-            }
+            continueButton
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    private var continueButton: some View {
+        SolidButton(title: selection.map { "Verder met \($0.title)" } ?? "Kies eerst een plek",
+                    fontSize: 14, minHeight: 48, enabled: canContinue) {
+            guard let selection else { return }
+            Task { await store.choose(selection) }
+        }
     }
 
     private var canContinue: Bool {
@@ -202,6 +230,13 @@ extension StorageChoice {
         switch self {
         case .local: "Alles blijft op dit apparaat."
         case .iCloud: "Je potjes op al je apparaten met hetzelfde iCloud-account."
+        }
+    }
+
+    var whenToPick: String {
+        switch self {
+        case .local: "Kies dit als je alleen op dit apparaat speelt."
+        case .iCloud: "Kies dit als je ook op een iPhone of iPad speelt met hetzelfde account."
         }
     }
 
