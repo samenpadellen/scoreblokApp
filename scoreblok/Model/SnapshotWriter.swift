@@ -105,7 +105,7 @@ enum SnapshotWriter {
     private static func reload() {
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()
-        ControlCenter.shared.reloadAllControls()
+        if #available(iOS 18.0, *) { ControlCenter.shared.reloadAllControls() }
         #endif
     }
 }

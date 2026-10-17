@@ -24,6 +24,7 @@ struct GameSuggestion {
 
 /// De vorm waarin het model antwoordt. Elke beschrijving stuurt de generatie,
 /// zodat er geen vrije tekst uitkomt maar een ingevuld sjabloon.
+@available(iOS 26.0, *)
 @Generable(description: "Een sjabloon voor een gezelschapsspel dat je met pen en papier bijhoudt")
 struct GeneratedGame {
     @Guide(description: "Korte Nederlandse naam van het spel, zonder aanhalingstekens")
@@ -89,6 +90,8 @@ final class GameAssistant {
         case notEnabled
         case downloading
         case unavailable
+        /// Het toestel draait een iOS van vóór Apple Intelligence.
+        case needsNewerSystem
 
         var explanation: String? {
             switch self {
@@ -97,6 +100,7 @@ final class GameAssistant {
             case .notEnabled: "Zet Apple Intelligence aan in Instellingen om dit te gebruiken."
             case .downloading: "Het model wordt nog gedownload."
             case .unavailable: "Apple Intelligence is hier niet beschikbaar."
+            case .needsNewerSystem: "Hiervoor is iOS 26 of nieuwer nodig."
             }
         }
     }
@@ -105,6 +109,7 @@ final class GameAssistant {
 
     var readiness: Readiness {
         #if canImport(FoundationModels)
+        guard #available(iOS 26.0, *) else { return .needsNewerSystem }
         switch SystemLanguageModel.default.availability {
         case .available:
             return .ready
@@ -135,6 +140,7 @@ final class GameAssistant {
 
     func suggest(from description: String) async -> GameSuggestion? {
         #if canImport(FoundationModels)
+        guard #available(iOS 26.0, *) else { return nil }
         let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, isReady else { return nil }
 
@@ -166,6 +172,7 @@ final class GameAssistant {
     #if canImport(FoundationModels)
     /// Vertaalt het antwoord naar de begrippen van de app en snijdt bij waar
     /// het model buiten de perken gaat.
+    @available(iOS 26.0, *)
     private static func convert(_ generated: GeneratedGame) -> GameSuggestion {
         let mode: ScoringMode = switch generated.mode.lowercased() {
         case let value where value.contains("winnaar"): .winnerOnly

@@ -26,6 +26,7 @@ final class MatchReporter {
     /// Alleen met Apple Intelligence aan, en als het model Nederlands kan.
     static var isAvailable: Bool {
         #if canImport(FoundationModels)
+        guard #available(iOS 26.0, *) else { return false }
         let model = SystemLanguageModel.default
         guard case .available = model.availability else { return false }
         return model.supportedLanguages.contains { $0.languageCode?.identifier == "nl" }
@@ -56,6 +57,7 @@ final class MatchReporter {
         guard Self.isAvailable, state != .writing else { return }
 
         #if canImport(FoundationModels)
+        guard #available(iOS 26.0, *) else { return }
         state = .writing
         text = ""
         do {

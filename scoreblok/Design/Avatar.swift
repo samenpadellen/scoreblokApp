@@ -72,7 +72,6 @@ struct AvatarPicker: View {
     /// Voor Image Playground: van wie het portret is.
     var name: String = ""
 
-    @Environment(\.supportsImagePlayground) private var supportsImagePlayground
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var libraryItem: PhotosPickerItem?
     @State private var showingCamera = false
@@ -93,6 +92,16 @@ struct AvatarPicker: View {
 
     private var cameraAvailable: Bool {
         UIImagePickerController.isSourceTypeAvailable(.camera)
+    }
+
+    /// Image Playground bestaat vanaf iOS 18.1 en alleen op toestellen met
+    /// Apple Intelligence. Kan het niet, dan staat de knop er niet.
+    private var playgroundAvailable: Bool {
+        if #available(iOS 18.1, *) {
+            ImagePlaygroundViewController.isAvailable
+        } else {
+            false
+        }
     }
 
     var body: some View {
@@ -172,14 +181,15 @@ struct AvatarPicker: View {
             }
             .ignoresSafeArea()
         }
-        .imagePlaygroundSheet(isPresented: $showingPlayground,
-                              concept: name.isEmpty ? "Portret van een speler" : "Portret van \(name)",
-                              sourceImage: currentImage.map { Image(uiImage: $0) }) { url in
-            process {
-                guard let data = try? Data(contentsOf: url) else { return nil }
-                return await PhotoProcessing.portrait(from: data)
-            }
-        }
+        .modifier(PlaygroundSheet(
+            isPresented: $showingPlayground,
+            concept: name.isEmpty ? "Portret van een speler" : "Portret van \(name)",
+            source: currentImage.map { Image(uiImage: $0) }) { url in
+                process {
+                    guard let data = try? Data(contentsOf: url) else { return nil }
+                    return await PhotoProcessing.portrait(from: data)
+                }
+            })
     }
 
     private var preview: some View {
@@ -212,7 +222,7 @@ struct AvatarPicker: View {
                     PhotoActionLabel(title: "Uit fotorol")
                 }
                 .buttonStyle(PressableStyle())
-                if supportsImagePlayground {
+                if playgroundAvailable {
                     Button { showingPlayground = true } label: { PhotoActionLabel(title: "Image Playground") }
                         .buttonStyle(PressableStyle())
                 }
@@ -252,6 +262,26 @@ struct AvatarPicker: View {
         withAnimation(M.Motion.quick) {
             avatarIndex = shape
             rampIndex = Int.random(in: 0..<M.playerRamp.count)
+        }
+    }
+}
+
+/// Het Image Playground-paneel, alleen waar het bestaat.
+private struct PlaygroundSheet: ViewModifier {
+    @Binding var isPresented: Bool
+    let concept: String
+    let source: Image?
+    let onPick: (URL) -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if #available(iOS 18.1, *) {
+            content.imagePlaygroundSheet(isPresented: $isPresented,
+                                         concept: concept,
+                                         sourceImage: source,
+                                         onCompletion: onPick)
+        } else {
+            content
         }
     }
 }

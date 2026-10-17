@@ -4,6 +4,7 @@ import Foundation
 /// Acties voor de knoppen in het Bedieningspaneel en op het toegangsscherm.
 /// Ze staan in zowel de app als de widgets, en openen Scoreblok op de juiste
 /// plek via een link die de app al kent.
+@available(iOS 18.0, *)
 struct OpenNewMatchIntent: AppIntent {
     static let title: LocalizedStringResource = "Kies een spel"
     static let description = IntentDescription("Opent Scoreblok bij het kiezen van een spel.")
@@ -16,6 +17,7 @@ struct OpenNewMatchIntent: AppIntent {
     }
 }
 
+@available(iOS 18.0, *)
 struct OpenStandingsIntent: AppIntent {
     static let title: LocalizedStringResource = "Open de stand"
     static let description = IntentDescription("Opent het potje dat nu loopt.")

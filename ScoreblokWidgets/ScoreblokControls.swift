@@ -4,6 +4,7 @@ import WidgetKit
 
 /// Een knop in het Bedieningspaneel of op het toegangsscherm: meteen naar het
 /// kiezen van een spel.
+@available(iOS 18.0, *)
 struct NewMatchControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "nl.scoreblok.control.nieuw") {
@@ -17,6 +18,7 @@ struct NewMatchControl: ControlWidget {
 }
 
 /// Wie er leidt, zonder de app te openen. Tik en je zit in het potje.
+@available(iOS 18.0, *)
 struct StandingsControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "nl.scoreblok.control.stand",
@@ -30,6 +32,7 @@ struct StandingsControl: ControlWidget {
     }
 }
 
+@available(iOS 18.0, *)
 struct LeaderValueProvider: ControlValueProvider {
     var previewValue: String { "Lisa · 42" }
 
